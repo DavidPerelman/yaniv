@@ -2,11 +2,6 @@
 
 משחק הקלפים הישראלי הקלאסי - עכשיו אונליין עם חברים!
 
-![יניב](https://img.shields.io/badge/משחק-יניב-green?style=for-the-badge)
-![React](https://img.shields.io/badge/React-18-blue?style=for-the-badge&logo=react)
-![Node.js](https://img.shields.io/badge/Node.js-Express-green?style=for-the-badge&logo=node.js)
-![Socket.io](https://img.shields.io/badge/Socket.io-realtime-black?style=for-the-badge&logo=socket.io)
-
 ---
 
 ## 🎮 על המשחק
