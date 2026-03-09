@@ -10,6 +10,8 @@ const initialState = {
   chat: [],
   error: null,
   roundResult: null,
+  winner: null,
+  finalStandings: [],
 }
 
 function reducer(state, action) {
@@ -29,6 +31,10 @@ function reducer(state, action) {
       return { ...state, error: null }
     case 'SET_ROUND_RESULT':
       return { ...state, roundResult: action.payload }
+    case 'SET_WINNER':
+      return { ...state, winner: action.payload }
+    case 'SET_FINAL_STANDINGS':
+      return { ...state, finalStandings: action.payload }
     case 'RESET':
       return { ...initialState, playerName: state.playerName }
     default:

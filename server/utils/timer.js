@@ -36,6 +36,7 @@ export function startTurnTimer(io, rooms, roomId) {
             room.gameState = result.gameState
             rooms.set(roomId, room)
             broadcastGameState(io, room, SOCKET_EVENTS)
+            startTurnTimer(io, rooms, roomId)
           }
         }
       } else if (gs.phase === 'draw') {

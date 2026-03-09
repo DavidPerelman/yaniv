@@ -35,8 +35,10 @@ export default function SocketManager() {
       dispatch({ type: 'SET_ROUND_RESULT', payload: result })
     })
 
-    socket.on(SOCKET_EVENTS.GAME_OVER, ({ winner }) => {
+    socket.on(SOCKET_EVENTS.GAME_OVER, ({ winner, finalStandings }) => {
       dispatch({ type: 'SET_ROUND_RESULT', payload: null })
+      dispatch({ type: 'SET_WINNER', payload: winner })
+      dispatch({ type: 'SET_FINAL_STANDINGS', payload: finalStandings })
       navigate('/end')
     })
 
