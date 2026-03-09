@@ -269,7 +269,7 @@ export function applyYaniv(gameState, callerId) {
   if (remaining.length === 1) {
     winner = remaining[0];
   } else if (remaining.length === 0) {
-    // Edge case: everyone eliminated simultaneously — lowest score wins
+    // Edge case: everyone eliminated simultaneously - lowest score wins
     const lowestScore = Math.min(...updatedPlayers.map((p) => p.score));
     winner = updatedPlayers.find((p) => p.score === lowestScore);
   }

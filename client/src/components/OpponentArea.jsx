@@ -15,52 +15,36 @@ export default function OpponentArea({ player, isCurrentTurn }) {
       }
       transition={{ duration: 1.5, repeat: isCurrentTurn ? Infinity : 0 }}
       className={[
-        'flex flex-col items-center gap-2 px-3 py-2 rounded-2xl transition-opacity',
+        'flex flex-col items-center gap-1 p-2 md:p-3 rounded-2xl transition-opacity',
         'bg-black/30 backdrop-blur-sm',
-        isCurrentTurn ? 'border-2 border-gold' : 'border border-white/10',
+        isCurrentTurn ? 'border-2 border-yellow-400' : 'border border-white/10',
         player.isEliminated ? 'opacity-40' : '',
       ].join(' ')}
-      style={{ minWidth: '76px' }}
+      style={{ minWidth: '72px' }}
     >
       {/* Avatar circle */}
       <div
-        style={{
-          width: '36px',
-          height: '36px',
-          borderRadius: '50%',
-          background: avatarColor,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontWeight: 'bold',
-          fontSize: '15px',
-          color: 'white',
-          flexShrink: 0,
-        }}
+        className="w-7 h-7 md:w-9 md:h-9 rounded-full flex items-center justify-center font-bold text-white text-sm shrink-0"
+        style={{ background: avatarColor }}
       >
         {initial}
       </div>
 
       {/* Name + score */}
       <div className="text-center">
-        <div className="text-sm font-semibold text-white leading-tight">{player.name}</div>
-        <div className="text-xs text-gray-300">{player.score} נק'</div>
+        <div className="text-xs md:text-sm font-semibold text-white leading-tight truncate max-w-[70px]">
+          {player.name}
+        </div>
+        <div className="text-xs text-white/60">{player.score} נק'</div>
       </div>
 
-      {/* Mini stacked face-down cards */}
-      <div className="flex items-center">
+      {/* Mini face-down cards */}
+      <div className="flex items-center justify-center">
         {Array.from({ length: Math.min(player.cardCount, 5) }).map((_, i) => (
           <div
             key={i}
-            style={{
-              width: '14px',
-              height: '20px',
-              borderRadius: '3px',
-              background: 'linear-gradient(135deg, #1565c0 25%, #1976d2 100%)',
-              border: '1px solid rgba(255,255,255,0.2)',
-              marginLeft: i > 0 ? '-5px' : 0,
-              boxShadow: '0 2px 4px rgba(0,0,0,0.35)',
-            }}
+            className="w-4 h-6 md:w-5 md:h-7 rounded bg-blue-700 border border-blue-500"
+            style={{ marginLeft: i > 0 ? '-5px' : 0 }}
           />
         ))}
         {player.cardCount > 5 && (

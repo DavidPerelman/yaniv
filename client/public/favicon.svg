@@ -1,0 +1,30 @@
+<svg width="512" height="512" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#166534"/>
+      <stop offset="100%" stop-color="#052e16"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="100" height="100" rx="22" fill="url(#bg)"/>
+
+  <!-- Left card (rotated -18°) -->
+  <g transform="rotate(-18, 50, 70)">
+    <rect x="20" y="20" width="36" height="52" rx="5" fill="white" stroke="#ddd" stroke-width="1"/>
+    <text x="38" y="40" text-anchor="middle" font-size="14" fill="#e74c3c" font-weight="bold" font-family="Arial">7</text>
+    <text x="38" y="57" text-anchor="middle" font-size="18" fill="#e74c3c" font-family="Arial">♥</text>
+  </g>
+
+  <!-- Right card (rotated +18°) -->
+  <g transform="rotate(18, 50, 70)">
+    <rect x="44" y="20" width="36" height="52" rx="5" fill="white" stroke="#ddd" stroke-width="1"/>
+    <text x="62" y="40" text-anchor="middle" font-size="14" fill="#1a1a1a" font-weight="bold" font-family="Arial">A</text>
+    <text x="62" y="57" text-anchor="middle" font-size="18" fill="#1a1a1a" font-family="Arial">♠</text>
+  </g>
+
+  <!-- Center card -->
+  <rect x="31" y="18" width="38" height="54" rx="5" fill="white" stroke="#e8d44d" stroke-width="2"/>
+  <text x="50" y="40" text-anchor="middle" font-size="13" fill="#e74c3c" font-weight="bold" font-family="Arial">3</text>
+  <text x="50" y="57" text-anchor="middle" font-size="18" fill="#e74c3c" font-family="Arial">♦</text>
+</svg>

@@ -1,18 +1,13 @@
 import CardComponent from "./CardComponent";
 
-export default function DiscardPile({
-  topCard,
-  drawableCard,
-  onDraw,
-  canDraw,
-}) {
+export default function DiscardPile({ topCard, drawableCard, onDraw, canDraw }) {
   const showBoth = drawableCard && topCard && drawableCard.id !== topCard.id;
 
   if (!topCard) {
     return (
       <div className="flex flex-col items-center gap-1">
         <span className="text-xs text-gray-400">ערימה</span>
-        <div className="w-14 h-20 rounded-lg border-2 border-dashed border-gray-500 flex items-center justify-center text-gray-500 text-xs">
+        <div className="w-14 h-20 md:w-16 md:h-24 rounded-lg border-2 border-dashed border-gray-500 flex items-center justify-center text-gray-500 text-xs">
           ריק
         </div>
       </div>
@@ -38,7 +33,7 @@ export default function DiscardPile({
         )}
       </div>
 
-      {/* If they are the same (first turn of round), clicking the card draws it */}
+      {/* If same card (first turn), show draw button */}
       {!showBoth && drawableCard && (
         <button
           onClick={canDraw ? onDraw : undefined}

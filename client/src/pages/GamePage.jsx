@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGame } from "../context/GameContext";
 import { useSocket } from "../hooks/useSocket";
@@ -12,7 +13,6 @@ import ChatPanel from "../components/ChatPanel";
 import RoundResultOverlay from "../components/RoundResultOverlay";
 import DealingOverlay from "../components/DealingOverlay";
 import YanivOverlay from "../components/YanivOverlay";
-import DevPanel from "../components/DevPanel";
 
 const RANK_ORDER_CLIENT = [
   "A",
@@ -55,7 +55,7 @@ function isValidDiscardClient(cards) {
 }
 
 const BTN_BASE =
-  "rounded-2xl px-5 py-3 font-bold text-white shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 text-sm";
+  "rounded-2xl px-3 py-2 md:px-5 md:py-3 font-bold text-white shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 text-xs md:text-sm";
 
 export default function GamePage() {
   const { state, dispatch } = useGame();
@@ -64,20 +64,17 @@ export default function GamePage() {
   const [dealing, setDealing] = useState(true);
   const [yanivAnnounce, setYanivAnnounce] = useState(null);
   const [showRoundResult, setShowRoundResult] = useState(false);
-  const [showChat, setShowChat] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const [toast, setToast] = useState(null);
 
-  // Reset dealing animation on each new round
   useEffect(() => {
     if (gameState) setDealing(true);
   }, [gameState?.roundNumber]);
 
-  // Clear selection on turn/phase change
   useEffect(() => {
     setSelectedCards([]);
   }, [gameState?.currentPlayerIndex, gameState?.phase]);
 
-  // Yaniv flow: watch roundResult from context (set by SocketManager)
   useEffect(() => {
     if (!roundResult) {
       setYanivAnnounce(null);
@@ -93,7 +90,6 @@ export default function GamePage() {
     return () => clearTimeout(t);
   }, [roundResult]);
 
-  // Toast for system messages (disconnect notifications)
   const handleSystemMessage = useCallback((msg) => {
     setToast(msg.text);
     setTimeout(() => setToast(null), 3000);
@@ -164,243 +160,256 @@ export default function GamePage() {
   }
 
   return (
-    <div className="felt-table min-h-screen flex flex-col h-screen overflow-hidden relative">
-      {/* Table oval decoration */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div
-          style={{
-            width: "60%",
-            height: "50%",
-            border: "2px solid rgba(255,255,255,0.06)",
-            borderRadius: "50%",
-          }}
-        />
-      </div>
-
-      {/* Header */}
-      <div className="relative z-10 flex justify-between items-center px-4 py-2 bg-black/30 text-sm shrink-0">
-        <span className="text-gray-300">סבב {gameState.roundNumber}</span>
-        <span
-          className="font-semibold"
-          style={{
-            color: isMyTurn ? "#f5c842" : "white",
-            fontFamily: isMyTurn ? "Fredoka One, cursive" : undefined,
-          }}
-        >
-          {isMyTurn
-            ? gameState.phase === "discard"
-              ? "תורך - השלך"
-              : "תורך - משוך"
-            : `תור ${currentPlayer?.name ?? ""}`}
-        </span>
-        <span className="text-gray-300">
-          ערך יד:{" "}
-          <span
-            style={{
-              color: myHandValue <= 7 ? "#f5c842" : "white",
-              fontWeight: "bold",
-            }}
-          >
-            {myHandValue}
+    <>
+      <div className="h-dvh flex flex-col overflow-hidden felt-table relative">
+        {/* Header - compact on mobile */}
+        <header className="flex justify-between items-center px-3 py-2 bg-black/20 text-sm shrink-0 relative z-10">
+          <span className="text-white/70 text-xs md:text-sm">
+            ערך יד:{" "}
+            <strong style={{ color: myHandValue <= 7 ? "#f5c842" : "white" }}>
+              {myHandValue}
+            </strong>
           </span>
-        </span>
-      </div>
-
-      {/* Main area */}
-      <div className="relative z-10 flex flex-1 gap-2 p-2 min-h-0">
-        {/* Left: game area */}
-        <div className="flex flex-col flex-1 gap-3 min-w-0">
-          {/* Opponents */}
-          <div className="flex flex-wrap justify-center gap-2">
-            {opponents.map((p) => (
-              <OpponentArea
-                key={p.id}
-                player={p}
-                isCurrentTurn={p.id === currentPlayer?.id}
-              />
-            ))}
+          <div className="flex items-center gap-2">
+            <span
+              className="font-bold text-center text-xs md:text-sm"
+              style={{
+                color: isMyTurn ? "#f5c842" : "white",
+                fontFamily: isMyTurn ? "Fredoka One, cursive" : undefined,
+              }}
+            >
+              {isMyTurn
+                ? gameState.phase === "discard"
+                  ? "תורך - השלך"
+                  : "תורך - משוך"
+                : `תור ${currentPlayer?.name ?? ""}`}
+            </span>
+            <TurnTimer timerSeconds={timerSeconds} />
           </div>
+          <span className="text-white/70 text-xs md:text-sm">
+            סבב {gameState.roundNumber}
+          </span>
+        </header>
 
-          {/* Deck + Discard */}
-          <div className="flex justify-center gap-8 items-end">
-            <div className="flex flex-col items-center gap-1">
-              <span className="text-xs text-gray-400">
-                חפיסה ({gameState.deckSize})
-              </span>
-              <motion.button
-                onClick={handleDrawDeck}
-                disabled={!canDraw}
-                whileTap={canDraw ? { scale: 0.95 } : {}}
+        {/* Main content: game area + chat side by side on desktop */}
+        <div className="flex flex-1 overflow-hidden relative z-10">
+          {/* Game area */}
+          <div className="flex-1 flex flex-col overflow-hidden relative">
+            {/* Oval table decoration */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div
                 style={{
-                  width: "4rem",
-                  height: "5.75rem",
-                  borderRadius: "12px",
-                  background:
-                    "linear-gradient(135deg, #1565c0 25%, #1976d2 100%)",
-                  border: "1px solid rgba(255,255,255,0.2)",
-                  boxShadow: canDraw
-                    ? "0 0 12px rgba(21,101,192,0.5)"
-                    : undefined,
-                  opacity: !canDraw ? 0.4 : 1,
-                  cursor: canDraw ? "pointer" : "not-allowed",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
+                  width: "80%",
+                  height: "45%",
+                  border: "2px solid rgba(255,255,255,0.06)",
+                  borderRadius: "50%",
+                }}
+              />
+            </div>
+
+            {/* Opponents row */}
+            <div className="flex justify-center gap-2 pt-3 px-2 shrink-0 flex-wrap">
+              {opponents.map((p) => (
+                <OpponentArea
+                  key={p.id}
+                  player={p}
+                  isCurrentTurn={p.id === currentPlayer?.id}
+                />
+              ))}
+            </div>
+
+            {/* Deck + Discard pile - centered, fills remaining space */}
+            <div className="flex justify-center items-center gap-6 md:gap-8 flex-1">
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-xs text-gray-400">
+                  חפיסה ({gameState.deckSize})
+                </span>
+                <motion.button
+                  onClick={handleDrawDeck}
+                  disabled={!canDraw}
+                  whileTap={canDraw ? { scale: 0.95 } : {}}
+                  style={{
+                    width: "3.5rem",
+                    height: "5rem",
+                    borderRadius: "10px",
+                    background:
+                      "linear-gradient(135deg, #1565c0 25%, #1976d2 100%)",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    boxShadow: canDraw
+                      ? "0 0 12px rgba(21,101,192,0.5)"
+                      : undefined,
+                    opacity: !canDraw ? 0.4 : 1,
+                    cursor: canDraw ? "pointer" : "not-allowed",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                  className="md:w-16 md:h-24"
+                >
+                  <div
+                    style={{
+                      width: "55%",
+                      height: "65%",
+                      border: "2px solid rgba(255,255,255,0.3)",
+                      borderRadius: "4px",
+                      transform: "rotate(45deg)",
+                    }}
+                  />
+                </motion.button>
+              </div>
+              <DiscardPile
+                topCard={topCard}
+                drawableCard={drawableCard}
+                onDraw={handleDrawDiscard}
+                canDraw={canDrawDiscard}
+              />
+            </div>
+
+            {/* Action buttons - 2×2 on mobile, row on desktop */}
+            <div className="grid grid-cols-2 md:flex md:flex-row justify-center gap-2 px-3 pb-2 shrink-0">
+              <button
+                onClick={handleDiscard}
+                disabled={!canDiscard}
+                className={BTN_BASE}
+                style={{
+                  background: "linear-gradient(135deg, #c62828, #e53935)",
                 }}
               >
-                <div
-                  style={{
-                    width: "55%",
-                    height: "65%",
-                    border: "2px solid rgba(255,255,255,0.3)",
-                    borderRadius: "4px",
-                    transform: "rotate(45deg)",
-                  }}
-                />
+                השלך
+              </button>
+              <button
+                onClick={handleDrawDeck}
+                disabled={!canDraw}
+                className={BTN_BASE}
+                style={{
+                  background: "linear-gradient(135deg, #1565c0, #1976d2)",
+                }}
+              >
+                משוך מחפיסה
+              </button>
+              <button
+                onClick={handleDrawDiscard}
+                disabled={!canDrawDiscard}
+                className={BTN_BASE}
+                style={{
+                  background: "linear-gradient(135deg, #6a1b9a, #8e24aa)",
+                }}
+              >
+                משוך מהערמה
+              </button>
+              <motion.button
+                onClick={handleYaniv}
+                disabled={!canYaniv}
+                animate={canYaniv ? { scale: [1, 1.05, 1] } : {}}
+                transition={{ duration: 1.2, repeat: Infinity }}
+                className={BTN_BASE + " text-gray-900"}
+                style={{
+                  background: "linear-gradient(135deg, #f5c842, #ffb300)",
+                }}
+              >
+                יניב! ({myHandValue})
               </motion.button>
             </div>
-            <DiscardPile
-              topCard={topCard}
-              drawableCard={drawableCard}
-              onDraw={handleDrawDiscard}
-              canDraw={canDrawDiscard}
+
+            {selectedCards.length > 0 &&
+              !isValidDiscardClient(selectedCards) && (
+                <p className="text-center text-red-400 text-xs pb-1">
+                  שילוב לא חוקי
+                </p>
+              )}
+          </div>
+
+          {/* Desktop chat sidebar */}
+          <div className="hidden md:flex md:flex-col md:w-56 shrink-0 border-r border-white/10">
+            <ChatPanel />
+          </div>
+        </div>
+
+        {/* My hand - fixed at bottom */}
+        <div
+          className="shrink-0 bg-black/30 pt-2 pb-3 relative z-10"
+          style={{ height: "150px" }}
+        >
+          <div className="text-center text-white/60 text-xs mb-1">
+            הקלפים שלי | סכום:{" "}
+            <strong style={{ color: myHandValue <= 7 ? "#f5c842" : "white" }}>
+              {myHandValue}
+            </strong>
+          </div>
+          <div className="flex gap-1 px-2 justify-center items-center h-24">
+            <PlayerHand
+              cards={myHand}
+              onCardSelect={toggleCard}
+              selectedCards={selectedCards}
             />
           </div>
-
-          {/* Timer */}
-          <TurnTimer timerSeconds={timerSeconds} />
-
-          {/* Action buttons - 2×2 grid on mobile, row on sm+ */}
-          <div className="grid grid-cols-2 sm:flex sm:flex-wrap justify-center gap-2">
-            <button
-              onClick={handleDiscard}
-              disabled={!canDiscard}
-              className={BTN_BASE}
-              style={{
-                background: "linear-gradient(135deg, #c62828, #e53935)",
-              }}
-            >
-              השלך
-            </button>
-            <button
-              onClick={handleDrawDeck}
-              disabled={!canDraw}
-              className={BTN_BASE}
-              style={{
-                background: "linear-gradient(135deg, #1565c0, #1976d2)",
-              }}
-            >
-              משוך מחפיסה
-            </button>
-            <button
-              onClick={handleDrawDiscard}
-              disabled={!canDrawDiscard}
-              className={BTN_BASE}
-              style={{
-                background: "linear-gradient(135deg, #6a1b9a, #8e24aa)",
-              }}
-            >
-              משוך מהערמה
-            </button>
-            <motion.button
-              onClick={handleYaniv}
-              disabled={!canYaniv}
-              animate={canYaniv ? { scale: [1, 1.05, 1] } : {}}
-              transition={{ duration: 1.2, repeat: Infinity }}
-              className={BTN_BASE + " text-gray-900"}
-              style={{
-                background: canYaniv
-                  ? "linear-gradient(135deg, #f5c842, #ffb300)"
-                  : "linear-gradient(135deg, #f5c842, #ffb300)",
-              }}
-            >
-              יניב! ({myHandValue})
-            </motion.button>
-          </div>
-
-          {selectedCards.length > 0 && !isValidDiscardClient(selectedCards) && (
-            <p className="text-center text-red-400 text-xs">שילוב לא חוקי</p>
-          )}
         </div>
 
-        {/* Chat panel */}
-        <div
-          className={`w-48 shrink-0 ${showChat ? "flex" : "hidden"} sm:flex flex-col`}
+        {/* Chat toggle - mobile only, bottom right */}
+        <button
+          onClick={() => setChatOpen(true)}
+          className="md:hidden fixed bottom-36 right-3 z-20 bg-black/60 text-white rounded-full w-11 h-11 flex items-center justify-center text-xl shadow-lg"
         >
-          <ChatPanel />
-        </div>
+          💬
+        </button>
+
+        {/* Toast notification */}
+        <AnimatePresence>
+          {toast && (
+            <motion.div
+              initial={{ x: 100, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: 100, opacity: 0 }}
+              className="fixed top-4 left-4 bg-black/80 text-white px-4 py-2 rounded-xl z-50 text-sm"
+            >
+              ⚠️ {toast}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Overlays */}
+        {dealing && (
+          <DealingOverlay
+            players={gameState.players}
+            onComplete={() => setDealing(false)}
+          />
+        )}
+
+        {yanivAnnounce && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 pointer-events-none">
+            <YanivOverlay roundResult={yanivAnnounce} myId={socket.id} />
+          </div>
+        )}
+
+        {showRoundResult && roundResult && (
+          <RoundResultOverlay
+            roundResult={roundResult}
+            myId={socket.id}
+            onClose={() => {
+              setShowRoundResult(false);
+              dispatch({ type: "SET_ROUND_RESULT", payload: null });
+            }}
+          />
+        )}
       </div>
 
-      {/* My hand */}
-      <div className="relative z-10 shrink-0 bg-black/20 rounded-t-2xl pt-2 pb-1">
-        <p className="text-center text-xs text-gray-400 mb-1">
-          הקלפים שלי | סכום:{" "}
-          <span
+      {/* Mobile chat - portal, completely outside layout */}
+      {chatOpen &&
+        createPortal(
+          <div
             style={{
-              color: myHandValue <= 7 ? "#f5c842" : "white",
-              fontWeight: "bold",
+              position: "fixed",
+              inset: 0,
+              zIndex: 9999,
+              display: "flex",
+              flexDirection: "column",
+              background: "#0f3d1a",
             }}
           >
-            {myHandValue}
-          </span>
-        </p>
-        <PlayerHand
-          cards={myHand}
-          onCardSelect={toggleCard}
-          selectedCards={selectedCards}
-        />
-      </div>
-
-      {/* Mobile chat toggle */}
-      <button
-        onClick={() => setShowChat((s) => !s)}
-        className="fixed bottom-24 left-3 z-20 sm:hidden w-10 h-10 rounded-full bg-felt shadow-lg flex items-center justify-center text-lg"
-      >
-        💬
-      </button>
-
-      {/* Toast notification (disconnect etc.) */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            initial={{ x: 100, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 100, opacity: 0 }}
-            className="fixed top-4 left-4 bg-black/80 text-white px-4 py-2 rounded-xl z-50 text-sm"
-          >
-            ⚠️ {toast}
-          </motion.div>
+            <ChatPanel onClose={() => setChatOpen(false)} />
+          </div>,
+          document.body,
         )}
-      </AnimatePresence>
-
-      <DevPanel />
-
-      {/* Overlays */}
-      {dealing && (
-        <DealingOverlay
-          players={gameState.players}
-          onComplete={() => setDealing(false)}
-        />
-      )}
-
-      {/* Yaniv/Assaf announcement — center, auto-hides after 2.5s */}
-      {yanivAnnounce && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 pointer-events-none">
-          <YanivOverlay roundResult={yanivAnnounce} myId={socket.id} />
-        </div>
-      )}
-
-      {/* Round result modal — includes cards inside */}
-      {showRoundResult && roundResult && (
-        <RoundResultOverlay
-          roundResult={roundResult}
-          myId={socket.id}
-          onClose={() => {
-            setShowRoundResult(false);
-            dispatch({ type: "SET_ROUND_RESULT", payload: null });
-          }}
-        />
-      )}
-    </div>
+    </>
   );
 }
