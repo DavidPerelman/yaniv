@@ -31,9 +31,7 @@ export function createInitialGameState(players, settings) {
     return {
       deck,
       discardPile,
-      drawableDiscardCard: discardPile[0] ?? null,
-      // The card a player may draw from the discard pile this turn.
-      // Set to the top card after each discard action.
+      drawableDiscardCards: null,
       players: statePlayers,
       currentPlayerIndex: 0,
       phase: "discard",
@@ -42,9 +40,68 @@ export function createInitialGameState(players, settings) {
       winner: null,
     };
   } catch (err) {
-    console.error('[gameLogic] createInitialGameState failed:', err.message, { players, settings });
+    console.error("[gameLogic] createInitialGameState failed:", err.message, {
+      players,
+      settings,
+    });
     throw err;
   }
+}
+
+export function computeDrawableCards(discardedCards, topBeforeDiscard) {
+  if (discardedCards.length === 1) {
+    return topBeforeDiscard ? [topBeforeDiscard] : [];
+  }
+
+  const jokers = discardedCards.filter((c) => c.suit === "JK");
+  const nonJokers = discardedCards.filter((c) => c.suit !== "JK");
+
+  // Set: all non-jokers share the same rank (or all jokers)
+  if (
+    nonJokers.length === 0 ||
+    nonJokers.every((c) => c.rank === nonJokers[0].rank)
+  ) {
+    return [...discardedCards];
+  }
+
+  // Run: sort non-jokers by rank position
+  const sortedNonJokers = [...nonJokers].sort(
+    (a, b) => RANK_ORDER.indexOf(a.rank) - RANK_ORDER.indexOf(b.rank),
+  );
+  const firstNonJoker = sortedNonJokers[0];
+  const lastNonJoker = sortedNonJokers[sortedNonJokers.length - 1];
+
+  const firstRankIdx = RANK_ORDER.indexOf(firstNonJoker.rank);
+  const lastRankIdx = RANK_ORDER.indexOf(lastNonJoker.rank);
+  const span = lastRankIdx - firstRankIdx + 1;
+
+  // If span > nonJokers.length, the joker fills a middle gap → drawable = edge non-jokers only
+  if (jokers.length > 0 && span > nonJokers.length) {
+    return firstNonJoker === lastNonJoker
+      ? [firstNonJoker]
+      : [firstNonJoker, lastNonJoker];
+  }
+
+  // Joker(s) are at edge(s) — detect which edge by position in original array
+  const firstNonJokerIdx = discardedCards.findIndex((c) => c.suit !== "JK");
+  const lastNonJokerIdx = discardedCards.findLastIndex((c) => c.suit !== "JK");
+
+  const drawable = [];
+  if (firstNonJokerIdx > 0) {
+    // Joker precedes first non-joker → low edge joker is drawable
+    drawable.push(discardedCards[0]);
+  } else {
+    drawable.push(firstNonJoker);
+  }
+
+  if (lastNonJokerIdx < discardedCards.length - 1) {
+    // Joker follows last non-joker → high edge joker is drawable
+    drawable.push(discardedCards[discardedCards.length - 1]);
+  } else if (lastNonJoker !== firstNonJoker) {
+    drawable.push(lastNonJoker);
+  }
+
+  return [...new Map(drawable.map((c) => [c.id, c])).values()];
 }
 
 export function isValidDiscard(cards) {
@@ -89,7 +146,7 @@ export function isValidDiscard(cards) {
 
     return false;
   } catch (err) {
-    console.error('[gameLogic] isValidDiscard failed:', err.message, { cards });
+    console.error("[gameLogic] isValidDiscard failed:", err.message, { cards });
     throw err;
   }
 }
@@ -97,7 +154,8 @@ export function isValidDiscard(cards) {
 export function applyDiscard(gameState, playerId, cards) {
   try {
     const playerIndex = gameState.players.findIndex((p) => p.id === playerId);
-    if (playerIndex === -1) return { success: false, error: "Player not found" };
+    if (playerIndex === -1)
+      return { success: false, error: "Player not found" };
     if (playerIndex !== gameState.currentPlayerIndex)
       return { success: false, error: "Not your turn" };
     if (gameState.phase !== "discard")
@@ -123,7 +181,7 @@ export function applyDiscard(gameState, playerId, cards) {
       ...gameState,
       phase: "draw",
       discardPile: newDiscardPile,
-      drawableDiscardCard: topBeforeDiscard,
+      drawableDiscardCards: computeDrawableCards(cards, topBeforeDiscard),
       lastDiscardedCards: cards,
       players: gameState.players.map((p, i) =>
         i === playerIndex ? { ...p, hand: newHand } : p,
@@ -132,15 +190,19 @@ export function applyDiscard(gameState, playerId, cards) {
 
     return { success: true, gameState: newState };
   } catch (err) {
-    console.error('[gameLogic] applyDiscard failed:', err.message, { playerId, cards });
+    console.error("[gameLogic] applyDiscard failed:", err.message, {
+      playerId,
+      cards,
+    });
     throw err;
   }
 }
 
-export function applyDraw(gameState, playerId, source) {
+export function applyDraw(gameState, playerId, source, cardId = null) {
   try {
     const playerIndex = gameState.players.findIndex((p) => p.id === playerId);
-    if (playerIndex === -1) return { success: false, error: "Player not found" };
+    if (playerIndex === -1)
+      return { success: false, error: "Player not found" };
     if (playerIndex !== gameState.currentPlayerIndex)
       return { success: false, error: "Not your turn" };
     if (gameState.phase !== "draw")
@@ -166,9 +228,14 @@ export function applyDraw(gameState, playerId, source) {
       }
       drawnCard = deck.pop();
     } else if (source === "discard") {
-      const cardToTake = gameState.drawableDiscardCard
-        ?? gameState.discardPile.at(-1)
-        ?? null;
+      const drawable = gameState.drawableDiscardCards ?? [];
+      let cardToTake;
+      if (cardId) {
+        cardToTake = drawable.find((c) => c.id === cardId) ?? null;
+        if (!cardToTake) return { success: false, error: "Card not drawable" };
+      } else {
+        cardToTake = drawable[0] ?? null;
+      }
       if (!cardToTake) return { success: false, error: "No card available" };
       discardPile = discardPile.filter((c) => c.id !== cardToTake.id);
       drawnCard = cardToTake;
@@ -185,7 +252,7 @@ export function applyDraw(gameState, playerId, source) {
       ...gameState,
       deck,
       discardPile,
-      drawableDiscardCard: null,
+      drawableDiscardCards: null,
       lastDiscardedCards: null,
       phase: "discard",
       currentPlayerIndex: nextIndex,
@@ -196,7 +263,10 @@ export function applyDraw(gameState, playerId, source) {
 
     return { success: true, gameState: newState, drawnCard };
   } catch (err) {
-    console.error('[gameLogic] applyDraw failed:', err.message, { playerId, source });
+    console.error("[gameLogic] applyDraw failed:", err.message, {
+      playerId,
+      source,
+    });
     throw err;
   }
 }
@@ -205,7 +275,7 @@ export function canCallYaniv(hand) {
   try {
     return calculateHandValue(hand) <= GAME_CONSTANTS.YANIV_THRESHOLD;
   } catch (err) {
-    console.error('[gameLogic] canCallYaniv failed:', err.message, { hand });
+    console.error("[gameLogic] canCallYaniv failed:", err.message, { hand });
     throw err;
   }
 }
@@ -229,7 +299,8 @@ export function applyYaniv(gameState, callerId) {
     let assaferName = null;
     if (callerWasAssafed) {
       const assafer = activePlayers.find(
-        (p) => p.id !== callerId && calculateHandValue(p.hand) <= callerHandValue,
+        (p) =>
+          p.id !== callerId && calculateHandValue(p.hand) <= callerHandValue,
       );
       if (assafer) {
         assaferId = assafer.id;
@@ -323,7 +394,7 @@ export function applyYaniv(gameState, callerId) {
       },
     };
   } catch (err) {
-    console.error('[gameLogic] applyYaniv failed:', err.message, { callerId });
+    console.error("[gameLogic] applyYaniv failed:", err.message, { callerId });
     throw err;
   }
 }
@@ -337,7 +408,9 @@ export function getNextActivePlayerIndex(players, currentIndex) {
     }
     return currentIndex; // fallback: all eliminated (shouldn't happen)
   } catch (err) {
-    console.error('[gameLogic] getNextActivePlayerIndex failed:', err.message, { currentIndex });
+    console.error("[gameLogic] getNextActivePlayerIndex failed:", err.message, {
+      currentIndex,
+    });
     throw err;
   }
 }

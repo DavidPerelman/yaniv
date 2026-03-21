@@ -41,11 +41,11 @@ export function registerGameHandlers(io, socket, rooms) {
     broadcastGameState(io, room, SOCKET_EVENTS);
   });
 
-  socket.on(SOCKET_EVENTS.DRAW, ({ source }) => {
+  socket.on(SOCKET_EVENTS.DRAW, ({ source, cardId }) => {
     const room = getRoomBySocket(socket, rooms);
     if (!room || !room.gameState) return;
 
-    const result = applyDraw(room.gameState, socket.id, source);
+    const result = applyDraw(room.gameState, socket.id, source, cardId);
     if (!result.success) {
       socket.emit("error", { message: result.error });
       return;
