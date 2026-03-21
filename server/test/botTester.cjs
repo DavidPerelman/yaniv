@@ -135,7 +135,9 @@ async function runGame(gameNum) {
     lastEvent = "bot2 connected";
     log(`[BOT] Game ${gameNum} | Bot2 connected (${bot2.id})`);
     await sleep(200);
-    bot2.emit(EV.JOIN_LOBBY, { name: "Bot2" });
+    bot2.emit(EV.JOIN_LOBBY, { name: "🤖 Bot2" });
+    await sleep(200);
+    bot2.emit(EV.JOIN_ROOM, { roomId, playerName: "🤖 Bot2" });
   });
 
   // ── Bot1 gets ROOM_UPDATED after creating → extract roomId → Bot2 joins ──
@@ -244,8 +246,9 @@ async function runGame(gameNum) {
     lastEvent = "GAME_OVER";
     if (freezeTimer) clearTimeout(freezeTimer);
     report.gamesCompleted++;
-    log(`Winner: ${data.winner?.name || JSON.stringify(data.winner)}`);
-
+    log(
+      `[BOT] Game ${gameNum} | ✅ FINISHED — Winner: ${data.winner || data.winnerName || JSON.stringify(data)}`,
+    );
     cleanup();
     setTimeout(() => runGame(gameNum + 1), 800);
   };

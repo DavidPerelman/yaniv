@@ -1,3 +1,11 @@
+process.on("uncaughtException", (err) => {
+  console.error("[FATAL] Uncaught Exception:", err.message, err.stack);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("[FATAL] Unhandled Rejection:", reason);
+});
+
 import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
