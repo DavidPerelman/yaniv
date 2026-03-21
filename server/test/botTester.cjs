@@ -247,7 +247,7 @@ async function runGame(gameNum) {
     if (freezeTimer) clearTimeout(freezeTimer);
     report.gamesCompleted++;
     log(
-      `[BOT] Game ${gameNum} | ✅ FINISHED — Winner: ${data.winner || data.winnerName || JSON.stringify(data)}`,
+      `[BOT] Game ${gameNum} | ✅ FINISHED — Winner: ${data.winner?.name ?? data.winnerName ?? JSON.stringify(data)}`,
     );
     cleanup();
     setTimeout(() => runGame(gameNum + 1), 800);
