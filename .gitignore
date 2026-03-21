@@ -2,3 +2,4 @@
 /server/node_modules
 docs
 server/test/bot_output.txt
+server/test/render_logs.txt

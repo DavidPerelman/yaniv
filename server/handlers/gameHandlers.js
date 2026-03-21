@@ -1,97 +1,124 @@
-import { SOCKET_EVENTS } from '../../shared/constants.js'
-import { applyDiscard, applyDraw, applyYaniv, createInitialGameState } from '../game/gameLogic.js'
-import { calculateHandValue } from '../game/deck.js'
-import { getRoomBySocket, broadcastGameState } from '../utils/sanitize.js'
-import { startTurnTimer, clearTurnTimer } from '../utils/timer.js'
+import { SOCKET_EVENTS } from "../../shared/constants.js";
+import {
+  applyDiscard,
+  applyDraw,
+  applyYaniv,
+  createInitialGameState,
+} from "../game/gameLogic.js";
+import { calculateHandValue } from "../game/deck.js";
+import { getRoomBySocket, broadcastGameState } from "../utils/sanitize.js";
+import { startTurnTimer, clearTurnTimer } from "../utils/timer.js";
 
 export function registerGameHandlers(io, socket, rooms) {
   socket.on(SOCKET_EVENTS.DISCARD, ({ cardIds }) => {
-    const room = getRoomBySocket(socket, rooms)
-    if (!room || !room.gameState) return
+    const room = getRoomBySocket(socket, rooms);
+    if (!room || !room.gameState) return;
 
-    const player = room.gameState.players.find(p => p.id === socket.id)
-    if (!player) return
+    const player = room.gameState.players.find((p) => p.id === socket.id);
+    if (!player) return;
 
-    const handSum = calculateHandValue(player.hand)
-    console.log(`[GAME] Turn started: room ${room.id}, player: ${player.name}, hand sum: ${handSum}`)
+    const handSum = calculateHandValue(player.hand);
+    console.log(
+      `[GAME] Turn started: room ${room.id}, player: ${player.name}, hand sum: ${handSum}`,
+    );
 
     const cards = cardIds
-      .map(id => player.hand.find(c => c.id === id))
-      .filter(Boolean)
+      .map((id) => player.hand.find((c) => c.id === id))
+      .filter(Boolean);
 
-    const result = applyDiscard(room.gameState, socket.id, cards)
+    const result = applyDiscard(room.gameState, socket.id, cards);
     if (!result.success) {
-      socket.emit('error', { message: result.error })
-      broadcastGameState(io, room, SOCKET_EVENTS)
-      return
+      socket.emit("error", { message: result.error });
+      broadcastGameState(io, room, SOCKET_EVENTS);
+      return;
     }
 
-    console.log(`[GAME] Card(s) discarded: ${player.name} discarded [${cards.map(c => `${c.rank}${c.suit}`).join(', ')}]`)
+    console.log(
+      `[GAME] Card(s) discarded: ${player.name} discarded [${cards.map((c) => `${c.rank}${c.suit}`).join(", ")}]`,
+    );
 
-    room.gameState = result.gameState
-    rooms.set(room.id, room)
-    broadcastGameState(io, room, SOCKET_EVENTS)
-    startTurnTimer(io, rooms, room.id)
-  })
+    room.gameState = result.gameState;
+    rooms.set(room.id, room);
+    broadcastGameState(io, room, SOCKET_EVENTS);
+    startTurnTimer(io, rooms, room.id);
+  });
 
   socket.on(SOCKET_EVENTS.DRAW, ({ source }) => {
-    const room = getRoomBySocket(socket, rooms)
-    if (!room || !room.gameState) return
+    const room = getRoomBySocket(socket, rooms);
+    if (!room || !room.gameState) return;
 
-    const result = applyDraw(room.gameState, socket.id, source)
+    const result = applyDraw(room.gameState, socket.id, source);
     if (!result.success) {
-      socket.emit('error', { message: result.error })
-      broadcastGameState(io, room, SOCKET_EVENTS)
-      return
+      socket.emit("error", { message: result.error });
+      return;
     }
 
-    const drawingPlayer = room.gameState.players.find(p => p.id === socket.id)
-    console.log(`[GAME] Card drawn: ${drawingPlayer?.name} drew from ${source} (${result.drawnCard?.rank}${result.drawnCard?.suit})`)
+    const drawingPlayer = room.gameState.players.find(
+      (p) => p.id === socket.id,
+    );
+    console.log(
+      `[GAME] Card drawn: ${drawingPlayer?.name} drew from ${source} (${result.drawnCard?.rank}${result.drawnCard?.suit})`,
+    );
 
-    room.gameState = result.gameState
-    rooms.set(room.id, room)
-    broadcastGameState(io, room, SOCKET_EVENTS)
+    room.gameState = result.gameState;
+    rooms.set(room.id, room);
+    broadcastGameState(io, room, SOCKET_EVENTS);
 
-    const currentPlayer = room.gameState.players[room.gameState.currentPlayerIndex]
-    io.to(room.id).emit(SOCKET_EVENTS.TURN_CHANGED, { currentPlayerId: currentPlayer.id })
-    startTurnTimer(io, rooms, room.id)
-  })
+    const currentPlayer =
+      room.gameState.players[room.gameState.currentPlayerIndex];
+    io.to(room.id).emit(SOCKET_EVENTS.TURN_CHANGED, {
+      currentPlayerId: currentPlayer.id,
+    });
+    startTurnTimer(io, rooms, room.id);
+  });
 
   socket.on(SOCKET_EVENTS.CALL_YANIV, () => {
-    const room = getRoomBySocket(socket, rooms)
-    if (!room || !room.gameState) return
+    const room = getRoomBySocket(socket, rooms);
+    if (!room || !room.gameState) return;
 
-    clearTurnTimer(room.id)
+    clearTurnTimer(room.id);
 
-    const yanivCaller = room.gameState.players.find(p => p.id === socket.id)
-    const callerHandSum = yanivCaller ? calculateHandValue(yanivCaller.hand) : '?'
-    console.log(`[GAME] Yaniv called: ${yanivCaller?.name}, hand sum: ${callerHandSum}`)
+    const yanivCaller = room.gameState.players.find((p) => p.id === socket.id);
+    const callerHandSum = yanivCaller
+      ? calculateHandValue(yanivCaller.hand)
+      : "?";
+    console.log(
+      `[GAME] Yaniv called: ${yanivCaller?.name}, hand sum: ${callerHandSum}`,
+    );
 
-    const result = applyYaniv(room.gameState, socket.id)
+    const result = applyYaniv(room.gameState, socket.id);
     if (!result.success) {
-      socket.emit('error', { message: result.error })
-      return
+      socket.emit("error", { message: result.error });
+      return;
     }
 
     if (result.roundResult.callerWasAssafed) {
-      const assafer = room.gameState.players.find(p => p.id === result.roundResult.assaferId)
-      const assaferSum = assafer ? calculateHandValue(assafer.hand) : '?'
-      console.log(`[GAME] Assaf triggered: ${result.roundResult.assaferName}, hand sum: ${assaferSum} vs caller sum: ${callerHandSum}`)
+      const assafer = room.gameState.players.find(
+        (p) => p.id === result.roundResult.assaferId,
+      );
+      const assaferSum = assafer ? calculateHandValue(assafer.hand) : "?";
+      console.log(
+        `[GAME] Assaf triggered: ${result.roundResult.assaferName}, hand sum: ${assaferSum} vs caller sum: ${callerHandSum}`,
+      );
     }
 
-    room.gameState = result.gameState
-    rooms.set(room.id, room)
+    room.gameState = result.gameState;
+    rooms.set(room.id, room);
 
-    const scores = result.roundResult.playerResults.map(p => `${p.name}: ${p.newScore}`).join(', ')
-    console.log(`[GAME] Round ended: ${scores}`)
+    const scores = result.roundResult.playerResults
+      .map((p) => `${p.name}: ${p.newScore}`)
+      .join(", ");
+    console.log(`[GAME] Round ended: ${scores}`);
 
     for (const p of result.roundResult.playerResults) {
       if (p.eliminated && p.handValue !== null) {
-        console.log(`[GAME] Player eliminated: ${p.name}, total score: ${p.newScore}`)
+        console.log(
+          `[GAME] Player eliminated: ${p.name}, total score: ${p.newScore}`,
+        );
       }
     }
 
-    io.to(room.id).emit(SOCKET_EVENTS.ROUND_END, result.roundResult)
+    io.to(room.id).emit(SOCKET_EVENTS.ROUND_END, result.roundResult);
 
     if (room.gameState.winner) {
       const finalStandings = room.gameState.players
@@ -101,7 +128,7 @@ export function registerGameHandlers(io, socket, rooms) {
           score: p.score,
           isEliminated: p.isEliminated,
         }))
-        .sort((a, b) => a.score - b.score)
+        .sort((a, b) => a.score - b.score);
 
       io.to(room.id).emit(SOCKET_EVENTS.GAME_OVER, {
         winner: {
@@ -110,131 +137,134 @@ export function registerGameHandlers(io, socket, rooms) {
           score: room.gameState.winner.score,
         },
         finalStandings,
-      })
-      return
+      });
+      return;
     }
 
     // Start a new round after 3 seconds (aligned with client overlay duration)
     setTimeout(() => {
-      const currentRoom = rooms.get(room.id)
-      if (!currentRoom) return
+      const currentRoom = rooms.get(room.id);
+      if (!currentRoom) return;
 
       const newGameState = createInitialGameState(
-        currentRoom.gameState.players.map(p => ({ id: p.id, name: p.name })),
-        currentRoom.gameState.settings
-      )
+        currentRoom.gameState.players.map((p) => ({ id: p.id, name: p.name })),
+        currentRoom.gameState.settings,
+      );
 
       // Preserve scores and eliminated status from previous round
       newGameState.players = newGameState.players.map((p, i) => ({
         ...p,
         score: currentRoom.gameState.players[i].score,
         isEliminated: currentRoom.gameState.players[i].isEliminated,
-      }))
-      newGameState.roundNumber = currentRoom.gameState.roundNumber + 1
+      }));
+      newGameState.roundNumber = currentRoom.gameState.roundNumber + 1;
 
-      currentRoom.gameState = newGameState
-      rooms.set(room.id, currentRoom)
-      broadcastGameState(io, currentRoom, SOCKET_EVENTS)
-      startTurnTimer(io, rooms, room.id)
-    }, 3000)
-  })
+      currentRoom.gameState = newGameState;
+      rooms.set(room.id, currentRoom);
+      broadcastGameState(io, currentRoom, SOCKET_EVENTS);
+      startTurnTimer(io, rooms, room.id);
+    }, 3000);
+  });
 
-  if (process.env.NODE_ENV !== 'production') {
-    socket.on('dev_force_low_hand', () => {
-      const room = getRoomBySocket(socket, rooms)
-      if (!room?.gameState) return
-      const player = room.gameState.players.find(p => p.id === socket.id)
-      if (!player) return
+  if (process.env.NODE_ENV !== "production") {
+    socket.on("dev_force_low_hand", () => {
+      const room = getRoomBySocket(socket, rooms);
+      if (!room?.gameState) return;
+      const player = room.gameState.players.find((p) => p.id === socket.id);
+      if (!player) return;
       player.hand = [
-        { id: 'H_A_dev', suit: 'H', rank: 'A', value: 1 },
-        { id: 'D_A_dev', suit: 'D', rank: 'A', value: 1 },
-      ]
-      room.gameState.phase = 'discard'
-      room.gameState.currentPlayerIndex = room.gameState.players.indexOf(player)
-      broadcastGameState(io, room, SOCKET_EVENTS)
-    })
+        { id: "H_A_dev", suit: "H", rank: "A", value: 1 },
+        { id: "D_A_dev", suit: "D", rank: "A", value: 1 },
+      ];
+      room.gameState.phase = "discard";
+      room.gameState.currentPlayerIndex =
+        room.gameState.players.indexOf(player);
+      broadcastGameState(io, room, SOCKET_EVENTS);
+    });
 
-    socket.on('dev_set_score', ({ score }) => {
-      const room = getRoomBySocket(socket, rooms)
-      if (!room?.gameState) return
-      const player = room.gameState.players.find(p => p.id === socket.id)
-      if (!player) return
-      player.score = score
-      broadcastGameState(io, room, SOCKET_EVENTS)
-    })
+    socket.on("dev_set_score", ({ score }) => {
+      const room = getRoomBySocket(socket, rooms);
+      if (!room?.gameState) return;
+      const player = room.gameState.players.find((p) => p.id === socket.id);
+      if (!player) return;
+      player.score = score;
+      broadcastGameState(io, room, SOCKET_EVENTS);
+    });
 
-    socket.on('dev_set_all_scores', ({ scores }) => {
-      const room = getRoomBySocket(socket, rooms)
-      if (!room?.gameState) return
+    socket.on("dev_set_all_scores", ({ scores }) => {
+      const room = getRoomBySocket(socket, rooms);
+      if (!room?.gameState) return;
       room.gameState.players.forEach((p, i) => {
-        if (scores[i] !== undefined) p.score = scores[i]
-      })
-      broadcastGameState(io, room, SOCKET_EVENTS)
-    })
+        if (scores[i] !== undefined) p.score = scores[i];
+      });
+      broadcastGameState(io, room, SOCKET_EVENTS);
+    });
 
-    socket.on('dev_force_my_turn', () => {
-      const room = getRoomBySocket(socket, rooms)
-      if (!room?.gameState) return
-      const idx = room.gameState.players.findIndex(p => p.id === socket.id)
-      if (idx === -1) return
-      room.gameState.currentPlayerIndex = idx
-      room.gameState.phase = 'discard'
-      broadcastGameState(io, room, SOCKET_EVENTS)
-    })
+    socket.on("dev_force_my_turn", () => {
+      const room = getRoomBySocket(socket, rooms);
+      if (!room?.gameState) return;
+      const idx = room.gameState.players.findIndex((p) => p.id === socket.id);
+      if (idx === -1) return;
+      room.gameState.currentPlayerIndex = idx;
+      room.gameState.phase = "discard";
+      broadcastGameState(io, room, SOCKET_EVENTS);
+    });
 
-    socket.on('dev_setup_scenario', ({ myScore, opponentScore, role }) => {
-      const room = getRoomBySocket(socket, rooms)
-      if (!room?.gameState) return
-      const players = room.gameState.players
-      const myIdx = players.findIndex(p => p.id === socket.id)
-      if (myIdx === -1) return
-      const oppIdx = myIdx === 0 ? 1 : 0
-      if (!players[oppIdx]) return
+    socket.on("dev_setup_scenario", ({ myScore, opponentScore, role }) => {
+      const room = getRoomBySocket(socket, rooms);
+      if (!room?.gameState) return;
+      const players = room.gameState.players;
+      const myIdx = players.findIndex((p) => p.id === socket.id);
+      if (myIdx === -1) return;
+      const oppIdx = myIdx === 0 ? 1 : 0;
+      if (!players[oppIdx]) return;
 
-      players.forEach(p => { p.isEliminated = false })
-      players[myIdx].score = myScore ?? 0
-      players[oppIdx].score = opponentScore ?? 0
+      players.forEach((p) => {
+        p.isEliminated = false;
+      });
+      players[myIdx].score = myScore ?? 0;
+      players[oppIdx].score = opponentScore ?? 0;
 
-      if (role === 'receiver') {
+      if (role === "receiver") {
         players[oppIdx].hand = [
-          { id: 'H_A_dev2', suit: 'H', rank: 'A', value: 1 },
-          { id: 'D_A_dev2', suit: 'D', rank: 'A', value: 1 },
-        ]
+          { id: "H_A_dev2", suit: "H", rank: "A", value: 1 },
+          { id: "D_A_dev2", suit: "D", rank: "A", value: 1 },
+        ];
         players[myIdx].hand = [
-          { id: 'H_2_dev', suit: 'H', rank: '2', value: 2 },
-          { id: 'D_3_dev', suit: 'D', rank: '3', value: 3 },
-        ]
-        room.gameState.currentPlayerIndex = oppIdx
-        room.gameState.phase = 'discard'
+          { id: "H_2_dev", suit: "H", rank: "2", value: 2 },
+          { id: "D_3_dev", suit: "D", rank: "3", value: 3 },
+        ];
+        room.gameState.currentPlayerIndex = oppIdx;
+        room.gameState.phase = "discard";
       } else {
         players[myIdx].hand = [
-          { id: 'H_A_dev', suit: 'H', rank: 'A', value: 1 },
-          { id: 'D_A_dev', suit: 'D', rank: 'A', value: 1 },
-        ]
+          { id: "H_A_dev", suit: "H", rank: "A", value: 1 },
+          { id: "D_A_dev", suit: "D", rank: "A", value: 1 },
+        ];
         players[oppIdx].hand = [
-          { id: 'H_K_dev', suit: 'H', rank: 'K', value: 10 },
-          { id: 'D_Q_dev', suit: 'D', rank: 'Q', value: 10 },
-          { id: 'C_J_dev', suit: 'C', rank: 'J', value: 10 },
-        ]
-        room.gameState.currentPlayerIndex = myIdx
-        room.gameState.phase = 'discard'
+          { id: "H_K_dev", suit: "H", rank: "K", value: 10 },
+          { id: "D_Q_dev", suit: "D", rank: "Q", value: 10 },
+          { id: "C_J_dev", suit: "C", rank: "J", value: 10 },
+        ];
+        room.gameState.currentPlayerIndex = myIdx;
+        room.gameState.phase = "discard";
       }
 
-      broadcastGameState(io, room, SOCKET_EVENTS)
-    })
+      broadcastGameState(io, room, SOCKET_EVENTS);
+    });
 
-    socket.on('dev_force_opponent_low_hand', () => {
-      const room = getRoomBySocket(socket, rooms)
-      if (!room?.gameState) return
-      const players = room.gameState.players
-      const myIdx = players.findIndex(p => p.id === socket.id)
-      const oppIdx = myIdx === 0 ? 1 : 0
-      if (!players[oppIdx]) return
+    socket.on("dev_force_opponent_low_hand", () => {
+      const room = getRoomBySocket(socket, rooms);
+      if (!room?.gameState) return;
+      const players = room.gameState.players;
+      const myIdx = players.findIndex((p) => p.id === socket.id);
+      const oppIdx = myIdx === 0 ? 1 : 0;
+      if (!players[oppIdx]) return;
       players[oppIdx].hand = [
-        { id: 'H_A_opp', suit: 'H', rank: 'A', value: 1 },
-        { id: 'D_A_opp', suit: 'D', rank: 'A', value: 1 },
-      ]
-      broadcastGameState(io, room, SOCKET_EVENTS)
-    })
+        { id: "H_A_opp", suit: "H", rank: "A", value: 1 },
+        { id: "D_A_opp", suit: "D", rank: "A", value: 1 },
+      ];
+      broadcastGameState(io, room, SOCKET_EVENTS);
+    });
   }
 }
