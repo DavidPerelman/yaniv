@@ -35,6 +35,7 @@ io.on("connection", (socket) => {
 
     if (room.status === "waiting") {
       const updatedRoom = removePlayerFromRoom(room, socket.id);
+      console.log(`[ROOM] Player left: ${socket.data.playerName} from room ${roomId}, remaining: ${updatedRoom.players.length}`)
       if (updatedRoom.players.length === 0) {
         rooms.delete(roomId);
       } else {

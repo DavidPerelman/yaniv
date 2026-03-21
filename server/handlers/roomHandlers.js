@@ -12,6 +12,7 @@ export function registerRoomHandlers(io, socket, rooms) {
     socket.data.roomId = room.id
     socket.data.playerName = playerName
 
+    console.log(`[ROOM] Room created: ${room.id}, host: ${playerName}`)
     socket.emit(SOCKET_EVENTS.ROOM_UPDATED, sanitizeRoom(room))
   })
 
@@ -35,6 +36,7 @@ export function registerRoomHandlers(io, socket, rooms) {
     socket.data.roomId = normalizedId
     socket.data.playerName = playerName
 
+    console.log(`[ROOM] Player joined: ${playerName} -> room ${normalizedId}, total players: ${result.room.players.length}`)
     io.to(normalizedId).emit(SOCKET_EVENTS.ROOM_UPDATED, sanitizeRoom(result.room))
   })
 
@@ -48,6 +50,8 @@ export function registerRoomHandlers(io, socket, rooms) {
 
     const updatedRoom = startGame(room)
     rooms.set(roomId, updatedRoom)
+
+    console.log(`[ROOM] Game start requested: room ${roomId}, players: [${updatedRoom.players.map(p => p.name).join(', ')}]`)
 
     for (const player of updatedRoom.players) {
       const view = privateGameView(updatedRoom.gameState, player.id)

@@ -1,5 +1,6 @@
 import { SOCKET_EVENTS } from '../../shared/constants.js'
 import { applyDiscard, applyDraw, applyYaniv, createInitialGameState } from '../game/gameLogic.js'
+import { calculateHandValue } from '../game/deck.js'
 import { getRoomBySocket, broadcastGameState } from '../utils/sanitize.js'
 import { startTurnTimer, clearTurnTimer } from '../utils/timer.js'
 
@@ -11,6 +12,9 @@ export function registerGameHandlers(io, socket, rooms) {
     const player = room.gameState.players.find(p => p.id === socket.id)
     if (!player) return
 
+    const handSum = calculateHandValue(player.hand)
+    console.log(`[GAME] Turn started: room ${room.id}, player: ${player.name}, hand sum: ${handSum}`)
+
     const cards = cardIds
       .map(id => player.hand.find(c => c.id === id))
       .filter(Boolean)
@@ -20,6 +24,8 @@ export function registerGameHandlers(io, socket, rooms) {
       socket.emit('error', { message: result.error })
       return
     }
+
+    console.log(`[GAME] Card(s) discarded: ${player.name} discarded [${cards.map(c => `${c.rank}${c.suit}`).join(', ')}]`)
 
     room.gameState = result.gameState
     rooms.set(room.id, room)
@@ -37,6 +43,9 @@ export function registerGameHandlers(io, socket, rooms) {
       return
     }
 
+    const drawingPlayer = room.gameState.players.find(p => p.id === socket.id)
+    console.log(`[GAME] Card drawn: ${drawingPlayer?.name} drew from ${source} (${result.drawnCard?.rank}${result.drawnCard?.suit})`)
+
     room.gameState = result.gameState
     rooms.set(room.id, room)
     broadcastGameState(io, room, SOCKET_EVENTS)
@@ -52,14 +61,33 @@ export function registerGameHandlers(io, socket, rooms) {
 
     clearTurnTimer(room.id)
 
+    const yanivCaller = room.gameState.players.find(p => p.id === socket.id)
+    const callerHandSum = yanivCaller ? calculateHandValue(yanivCaller.hand) : '?'
+    console.log(`[GAME] Yaniv called: ${yanivCaller?.name}, hand sum: ${callerHandSum}`)
+
     const result = applyYaniv(room.gameState, socket.id)
     if (!result.success) {
       socket.emit('error', { message: result.error })
       return
     }
 
+    if (result.roundResult.callerWasAssafed) {
+      const assafer = room.gameState.players.find(p => p.id === result.roundResult.assaferId)
+      const assaferSum = assafer ? calculateHandValue(assafer.hand) : '?'
+      console.log(`[GAME] Assaf triggered: ${result.roundResult.assaferName}, hand sum: ${assaferSum} vs caller sum: ${callerHandSum}`)
+    }
+
     room.gameState = result.gameState
     rooms.set(room.id, room)
+
+    const scores = result.roundResult.playerResults.map(p => `${p.name}: ${p.newScore}`).join(', ')
+    console.log(`[GAME] Round ended: ${scores}`)
+
+    for (const p of result.roundResult.playerResults) {
+      if (p.eliminated && p.handValue !== null) {
+        console.log(`[GAME] Player eliminated: ${p.name}, total score: ${p.newScore}`)
+      }
+    }
 
     io.to(room.id).emit(SOCKET_EVENTS.ROUND_END, result.roundResult)
 
