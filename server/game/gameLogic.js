@@ -124,6 +124,7 @@ export function applyDiscard(gameState, playerId, cards) {
       phase: "draw",
       discardPile: newDiscardPile,
       drawableDiscardCard: topBeforeDiscard,
+      lastDiscardedCards: cards,
       players: gameState.players.map((p, i) =>
         i === playerIndex ? { ...p, hand: newHand } : p,
       ),
@@ -185,6 +186,7 @@ export function applyDraw(gameState, playerId, source) {
       deck,
       discardPile,
       drawableDiscardCard: null,
+      lastDiscardedCards: null,
       phase: "discard",
       currentPlayerIndex: nextIndex,
       players: gameState.players.map((p, i) =>

@@ -28,6 +28,21 @@ export function startTurnTimer(io, rooms, roomId) {
     if (remaining <= 0) {
       const currentRoom = rooms.get(roomId)
       if (!currentRoom?.gameState) return
+      const gs = currentRoom.gameState
+
+      if (gs.phase === 'draw') {
+        const lastDiscarded = gs.lastDiscardedCards
+        if (lastDiscarded?.length) {
+          const discardedIds = new Set(lastDiscarded.map((c) => c.id))
+          const playerIndex = gs.currentPlayerIndex
+          gs.discardPile = gs.discardPile.filter((c) => !discardedIds.has(c.id))
+          gs.players = gs.players.map((p, i) =>
+            i === playerIndex ? { ...p, hand: [...p.hand, ...lastDiscarded] } : p,
+          )
+          gs.lastDiscardedCards = null
+        }
+      }
+
       const nextIndex = getNextActivePlayerIndex(
         currentRoom.gameState.players,
         currentRoom.gameState.currentPlayerIndex,

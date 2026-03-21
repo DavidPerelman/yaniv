@@ -124,8 +124,7 @@ async function runGame(gameNum) {
     await sleep(200);
     bot1.emit(EV.CREATE_ROOM, {
       roomName: "BotTest",
-      timerEnabled: false,
-      timer: 0,
+      settings: { timerSeconds: 0 },
     });
     resetFreezeTimer(bot1, bot2, "waiting for ROOM_UPDATED after create");
   });
@@ -136,8 +135,6 @@ async function runGame(gameNum) {
     log(`[BOT] Game ${gameNum} | Bot2 connected (${bot2.id})`);
     await sleep(200);
     bot2.emit(EV.JOIN_LOBBY, { name: "🤖 Bot2" });
-    await sleep(200);
-    bot2.emit(EV.JOIN_ROOM, { roomId, playerName: "🤖 Bot2" });
   });
 
   // ── Bot1 gets ROOM_UPDATED after creating → extract roomId → Bot2 joins ──
@@ -214,12 +211,8 @@ async function runGame(gameNum) {
       );
       botSocket.emit(EV.DISCARD, { cardIds: toDiscard.map((c) => c.id) });
     } else if (phase === "draw") {
-      // Always draw from deck (pile drawing seems buggy - investigate separately)
-      const src = "deck";
-      log(
-        `[BOT] Game ${gameNum} | Round ${roundNum} | ${botName} draws from ${src}`,
-      );
-      botSocket.emit(EV.DRAW, { source: src });
+      log(`[BOT] ...draws from deck`);
+      botSocket.emit(EV.DRAW, { source: "deck" });
     }
   };
 
