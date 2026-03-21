@@ -52,6 +52,20 @@ io.on("connection", (socket) => {
       });
       const p = room.gameState?.players.find((p) => p.id === socket.id);
       if (p) p.isEliminated = true;
+
+      if (room.gameState && !room.gameState.winner) {
+        const activePlayers = room.gameState.players.filter((p) => !p.isEliminated);
+        if (activePlayers.length === 1) {
+          const winner = activePlayers[0];
+          io.to(roomId).emit(SOCKET_EVENTS.GAME_OVER, {
+            winner: { id: winner.id, name: winner.name, score: winner.score },
+            reason: "opponent_disconnected",
+          });
+          rooms.delete(roomId);
+          return;
+        }
+      }
+
       broadcastGameState(io, room, SOCKET_EVENTS);
     }
   });

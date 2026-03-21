@@ -165,8 +165,10 @@ export function applyDraw(gameState, playerId, source) {
       }
       drawnCard = deck.pop();
     } else if (source === "discard") {
-      const cardToTake = gameState.drawableDiscardCard;
-      if (!cardToTake) return { success: false, error: "אין קלף זמין בערמה" };
+      const cardToTake = gameState.drawableDiscardCard
+        ?? gameState.discardPile.at(-1)
+        ?? null;
+      if (!cardToTake) return { success: false, error: "No card available" };
       discardPile = discardPile.filter((c) => c.id !== cardToTake.id);
       drawnCard = cardToTake;
     } else {

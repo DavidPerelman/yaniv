@@ -22,6 +22,7 @@ export function registerGameHandlers(io, socket, rooms) {
     const result = applyDiscard(room.gameState, socket.id, cards)
     if (!result.success) {
       socket.emit('error', { message: result.error })
+      broadcastGameState(io, room, SOCKET_EVENTS)
       return
     }
 
@@ -40,6 +41,7 @@ export function registerGameHandlers(io, socket, rooms) {
     const result = applyDraw(room.gameState, socket.id, source)
     if (!result.success) {
       socket.emit('error', { message: result.error })
+      broadcastGameState(io, room, SOCKET_EVENTS)
       return
     }
 

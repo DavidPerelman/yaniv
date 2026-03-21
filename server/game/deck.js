@@ -1,7 +1,7 @@
 const RANK_ORDER = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
 
 export function getCardValue(card) {
-  if (card.suit === 'JK' || card.rank === 'JK') return 0
+  if (card.suit === 'JK' || card.rank === 'JK' || card.rank === 'JOKER') return 0
   if (card.rank === 'A') return 1
   if (['J', 'Q', 'K'].includes(card.rank)) return 10
   return parseInt(card.rank)
