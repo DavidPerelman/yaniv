@@ -12,6 +12,7 @@ const initialState = {
   roundResult: null,
   winner: null,
   finalStandings: [],
+  isDisconnected: false,
 }
 
 function reducer(state, action) {
@@ -35,6 +36,8 @@ function reducer(state, action) {
       return { ...state, winner: action.payload }
     case 'SET_FINAL_STANDINGS':
       return { ...state, finalStandings: action.payload }
+    case 'SET_DISCONNECTED':
+      return { ...state, isDisconnected: action.payload }
     case 'RESET':
       return { ...initialState, playerName: state.playerName }
     default:

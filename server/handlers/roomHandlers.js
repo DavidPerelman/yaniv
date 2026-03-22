@@ -40,6 +40,16 @@ export function registerRoomHandlers(io, socket, rooms) {
     io.to(normalizedId).emit(SOCKET_EVENTS.ROOM_UPDATED, sanitizeRoom(result.room))
   })
 
+  socket.on(SOCKET_EVENTS.CHECK_ROOM, ({ roomId, playerName }) => {
+    const room = rooms.get(roomId)
+    const playerInRoom = room?.players?.some((p) => p.name === playerName)
+    if (room && playerInRoom) {
+      socket.emit(SOCKET_EVENTS.ROOM_OK)
+    } else {
+      socket.emit(SOCKET_EVENTS.ROOM_GONE)
+    }
+  })
+
   socket.on(SOCKET_EVENTS.START_GAME, () => {
     const roomId = socket.data.roomId
     const room = rooms.get(roomId)

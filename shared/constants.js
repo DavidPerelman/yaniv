@@ -33,4 +33,8 @@ export const SOCKET_EVENTS = {
   // timer
   TIMER_TICK: 'timer_tick',
   TIMER_EXPIRED: 'timer_expired',
+  // reconnect
+  CHECK_ROOM: 'check_room',
+  ROOM_OK: 'room_ok',
+  ROOM_GONE: 'room_gone',
 }

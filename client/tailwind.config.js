@@ -2,6 +2,15 @@ export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
+      keyframes: {
+        'fade-in': {
+          from: { opacity: '0' },
+          to: { opacity: '1' },
+        },
+      },
+      animation: {
+        'fade-in': 'fade-in 0.4s ease-in-out',
+      },
       colors: {
         // Legacy aliases (used in non-redesigned pages)
         table: '#1a6b35',

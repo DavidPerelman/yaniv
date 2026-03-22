@@ -1,13 +1,21 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import socket from './socketClient'
 import { useGame } from '../context/GameContext'
 import { SOCKET_EVENTS } from '../../../shared/constants.js'
 
 export default function SocketManager() {
-  const { dispatch } = useGame()
+  const { state, dispatch } = useGame()
   const navigate = useNavigate()
   const roomIdRef = useRef(null)
+  const wasDisconnected = useRef(false)
+  const [showRoomGoneToast, setShowRoomGoneToast] = useState(false)
+
+  useEffect(() => {
+    if (state.playerName) {
+      localStorage.setItem('yaniv_playerName', state.playerName)
+    }
+  }, [state.playerName])
 
   useEffect(() => {
     socket.connect()
@@ -50,8 +58,44 @@ export default function SocketManager() {
       dispatch({ type: 'ADD_CHAT', payload: { ...msg, isSystem: true } })
     })
 
+    socket.on('disconnect', () => {
+      wasDisconnected.current = true
+      dispatch({ type: 'SET_DISCONNECTED', payload: true })
+    })
+
+    socket.on('connect', () => {
+      if (wasDisconnected.current) {
+        wasDisconnected.current = false
+        dispatch({ type: 'SET_DISCONNECTED', payload: false })
+
+        const path = window.location.pathname
+        const match = path.match(/\/(waiting|game)\/([^/]+)/)
+        if (match) {
+          const roomId = match[2]
+          const playerName = state.playerName || localStorage.getItem('yaniv_playerName') || ''
+          console.log('emitting CHECK_ROOM with:', { roomId, playerName })
+          socket.emit(SOCKET_EVENTS.CHECK_ROOM, { roomId, playerName })
+        }
+      }
+    })
+
+    socket.on(SOCKET_EVENTS.ROOM_OK, () => {
+      console.log('ROOM_OK received')
+    })
+
+    socket.on(SOCKET_EVENTS.ROOM_GONE, () => {
+      console.log('ROOM_GONE received')
+      setShowRoomGoneToast(true)
+      setTimeout(() => setShowRoomGoneToast(false), 4000)
+      navigate('/lobby')
+    })
+
     return () => socket.disconnect()
   }, [])
 
-  return null
+  return showRoomGoneToast ? (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-red-800 text-white px-6 py-3 rounded-xl shadow-lg text-center">
+      החדר כבר לא קיים, חזרת ללובי
+    </div>
+  ) : null
 }
