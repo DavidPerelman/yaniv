@@ -140,6 +140,7 @@ export function registerGameHandlers(io, socket, rooms) {
     }
 
     // Start a new round after 3 seconds (aligned with client overlay duration)
+    const yanivCallerId = socket.id;
     setTimeout(() => {
       const currentRoom = rooms.get(room.id);
       if (!currentRoom) return;
@@ -156,6 +157,13 @@ export function registerGameHandlers(io, socket, rooms) {
         isEliminated: currentRoom.gameState.players[i].isEliminated,
       }));
       newGameState.roundNumber = currentRoom.gameState.roundNumber + 1;
+
+      const callerIndex = newGameState.players.findIndex(
+        (p) => p.id === yanivCallerId,
+      );
+      if (callerIndex !== -1) {
+        newGameState.currentPlayerIndex = callerIndex;
+      }
 
       currentRoom.gameState = newGameState;
       rooms.set(room.id, currentRoom);
