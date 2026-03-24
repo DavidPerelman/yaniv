@@ -31,7 +31,7 @@ export function createInitialGameState(players, settings) {
     return {
       deck,
       discardPile,
-      drawableDiscardCards: null,
+      drawableDiscardCards: discardPile.length ? [discardPile[0]] : [],
       players: statePlayers,
       currentPlayerIndex: Math.floor(Math.random() * players.length),
       phase: "discard",

@@ -152,6 +152,9 @@ export function registerGameHandlers(io, socket, rooms) {
         currentRoom.gameState.players.map((p) => ({ id: p.id, name: p.name })),
         currentRoom.gameState.settings,
       );
+      newGameState.drawableDiscardCards = newGameState.discardPile.length
+        ? [newGameState.discardPile[0]]
+        : [];
 
       // Preserve scores and eliminated status from previous round
       newGameState.players = newGameState.players.map((p, i) => ({
