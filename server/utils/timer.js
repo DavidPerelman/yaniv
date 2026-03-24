@@ -40,6 +40,9 @@ export function startTurnTimer(io, rooms, roomId) {
             i === playerIndex ? { ...p, hand: [...p.hand, ...lastDiscarded] } : p,
           )
           gs.lastDiscardedCards = null
+          gs.drawableDiscardCards = gs.discardPile.length
+            ? [gs.discardPile[gs.discardPile.length - 1]]
+            : []
         }
       }
 
