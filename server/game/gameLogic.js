@@ -283,8 +283,13 @@ export function canCallYaniv(hand) {
 
 export function applyYaniv(gameState, callerId) {
   try {
-    const caller = gameState.players.find((p) => p.id === callerId);
-    if (!caller) return { success: false, error: "Player not found" };
+    const callerIndex = gameState.players.findIndex((p) => p.id === callerId);
+    if (callerIndex === -1) return { success: false, error: "Player not found" };
+    if (callerIndex !== gameState.currentPlayerIndex)
+      return { success: false, error: "Not your turn" };
+    if (gameState.phase !== "discard")
+      return { success: false, error: "Can only call Yaniv during discard phase" };
+    const caller = gameState.players[callerIndex];
     if (!canCallYaniv(caller.hand))
       return { success: false, error: "Hand value too high to call Yaniv" };
 
