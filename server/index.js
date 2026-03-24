@@ -6,6 +6,7 @@ process.on("unhandledRejection", (reason) => {
   console.error("[FATAL] Unhandled Rejection:", reason);
 });
 
+import cors from "cors";
 import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
@@ -15,6 +16,8 @@ import { registerGameHandlers } from "./handlers/gameHandlers.js";
 import { registerChatHandlers } from "./handlers/chatHandlers.js";
 import { removePlayerFromRoom } from "./game/room.js";
 import { sanitizeRoom, broadcastGameState } from "./utils/sanitize.js";
+import { clearTurnTimer, startTurnTimer } from "./utils/timer.js";
+import { getNextActivePlayerIndex } from "./game/gameLogic.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -24,6 +27,8 @@ const io = new Server(httpServer, {
 
 // Shared in-memory store - passed to every handler
 const rooms = new Map(); // roomId → room object
+
+app.use(cors({ origin: "*" }));
 
 app.get("/health", (req, res) => res.json({ status: "ok" }));
 
@@ -61,6 +66,19 @@ io.on("connection", (socket) => {
       const p = room.gameState?.players.find((p) => p.id === socket.id);
       if (p) p.isEliminated = true;
 
+      const wasCurrentPlayer =
+        room.gameState?.players[room.gameState.currentPlayerIndex]?.id === socket.id;
+
+      if (wasCurrentPlayer && room.gameState) {
+        clearTurnTimer(room.id);
+        const nextIndex = getNextActivePlayerIndex(
+          room.gameState.players,
+          room.gameState.currentPlayerIndex,
+        );
+        room.gameState.currentPlayerIndex = nextIndex;
+        room.gameState.phase = "discard";
+      }
+
       if (room.gameState && !room.gameState.winner) {
         const activePlayers = room.gameState.players.filter((p) => !p.isEliminated);
         if (activePlayers.length === 1) {
@@ -72,6 +90,10 @@ io.on("connection", (socket) => {
           rooms.delete(roomId);
           return;
         }
+      }
+
+      if (wasCurrentPlayer && room.gameState) {
+        startTurnTimer(io, rooms, room.id);
       }
 
       broadcastGameState(io, room, SOCKET_EVENTS);
