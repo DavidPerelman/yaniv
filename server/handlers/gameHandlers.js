@@ -74,6 +74,9 @@ export function registerGameHandlers(io, socket, rooms) {
     const room = getRoomBySocket(socket, rooms);
     if (!room || !room.gameState) return;
 
+    if (room.gameState.phase !== "discard") return;
+    if (room.gameState.players[room.gameState.currentPlayerIndex]?.id !== socket.id) return;
+
     clearTurnTimer(room.id);
 
     const yanivCaller = room.gameState.players.find((p) => p.id === socket.id);
