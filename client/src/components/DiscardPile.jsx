@@ -1,7 +1,27 @@
 import CardComponent from "./CardComponent";
 
-export default function DiscardPile({ topCard, drawableCard, onDraw, canDraw }) {
+function CardFan({ cards }) {
+  return (
+    <div
+      className="relative"
+      style={{ width: `${48 + (cards.length - 1) * 16}px`, height: "72px" }}
+    >
+      {cards.map((card, i) => (
+        <div
+          key={card.id}
+          className="absolute"
+          style={{ left: `${i * 16}px`, top: 0 }}
+        >
+          <CardComponent card={card} selected={false} onClick={undefined} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function DiscardPile({ topCard, drawableCard, underCard, onDraw, canDraw, fanCards = [] }) {
   const showBoth = drawableCard && topCard && drawableCard.id !== topCard.id;
+  const showFan = fanCards.length > 1;
 
   if (!topCard) {
     return (
@@ -14,23 +34,68 @@ export default function DiscardPile({ topCard, drawableCard, onDraw, canDraw }) 
     );
   }
 
+  // Fan display (purely visual) when multiple cards were last discarded
+  if (showFan) {
+    return (
+      <div className="flex flex-col items-center gap-1">
+        <span className="text-xs text-gray-400">ערימה</span>
+        <div
+          className="relative"
+          style={{ width: `${48 + fanCards.length * 16}px`, height: "86px" }}
+        >
+          <CardFan cards={fanCards} />
+          {/* topCard overlay — only during draw phase to show what was just thrown on top */}
+          {(showBoth || underCard) && (
+            <div
+              className="absolute pointer-events-none opacity-80"
+              style={{ left: `${fanCards.length * 16}px`, top: "14px" }}
+            >
+              <CardComponent card={topCard} selected={false} onClick={undefined} />
+            </div>
+          )}
+        </div>
+        {!showBoth && drawableCard && (
+          <button
+            onClick={canDraw ? onDraw : undefined}
+            disabled={!canDraw}
+            className="text-xs text-blue-300 disabled:text-gray-500 disabled:cursor-not-allowed hover:text-blue-200 transition"
+          >
+            משוך
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // Single card — existing behavior unchanged
   return (
     <div className="flex flex-col items-center gap-1">
       <span className="text-xs text-gray-400">ערימה</span>
       <div className="relative">
-        {/* Top card (most recently discarded - visual only) */}
-        <CardComponent card={topCard} selected={false} onClick={undefined} />
-
-        {/* Drawable card - shown offset if different from top */}
+        {/* Draw phase: drawable card in normal flow, topCard floats on top semi-transparent */}
         {showBoth && (
-          <div className="absolute -bottom-2 -right-2 opacity-80">
-            <CardComponent
-              card={drawableCard}
-              selected={false}
-              onClick={canDraw ? onDraw : undefined}
-            />
-          </div>
+          <CardComponent
+            card={drawableCard}
+            selected={false}
+            onClick={canDraw ? onDraw : undefined}
+          />
         )}
+        {/* Draw phase with underCard: underCard in normal flow, topCard floats on top */}
+        {!showBoth && underCard && (
+          <CardComponent
+            card={underCard}
+            selected={false}
+            onClick={canDraw ? onDraw : undefined}
+          />
+        )}
+        {/* topCard — overlay when stacking, or sole card when alone */}
+        <div className={showBoth || underCard ? "absolute -bottom-2 -right-2 opacity-80 pointer-events-none" : ""}>
+          <CardComponent
+            card={topCard}
+            selected={false}
+            onClick={!showBoth && !underCard && canDraw ? onDraw : undefined}
+          />
+        </div>
       </div>
 
       {/* If same card (first turn), show draw button */}

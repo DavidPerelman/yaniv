@@ -173,3 +173,45 @@ if (room.gameState.players[room.gameState.currentPlayerIndex]?.id !== socket.id)
 ```
 
 **Note:** `clearTurnTimer` should only be called after validating the call is legitimate — a rejected call should leave the timer running.
+
+---
+
+## BUG-UI-01 — DiscardPile shows wrong cards — fanCards wired to drawableCards instead of lastDiscardedCards
+
+**Severity:** Medium — visual display incorrect, does not affect game logic
+**Status:** Open
+
+### Symptom
+
+During discard phase, the fan on the discard pile shows cards from a previous turn instead of the card just discarded. During draw phase, the fan shows the drawable set (correct) but opponents see the wrong cards.
+
+### Root Cause
+
+**File:** `client/src/pages/GamePage.jsx` — line ~290
+
+```js
+// Current (wrong after BUG-01 fix):
+fanCards={drawableCards}
+```
+
+`fanCards` is always wired to `drawableCards` (= `drawableDiscardCards`). After the BUG-01 fix, `drawableDiscardCards` is correctly preserved from the *previous* player's discard — but this means `fanCards` shows the previous player's discard during the current player's discard phase, not what was just thrown.
+
+The intent of the fan is to show what is physically on top of the pile right now. That is `lastDiscardedCards` — the cards most recently discarded in the current turn. `drawableDiscardCards` is the set from one turn earlier and is used only for draw-phase picking logic.
+
+### Fix Direction
+
+**File:** `client/src/pages/GamePage.jsx`
+
+Replace the hardcoded `fanCards={drawableCards}` prop with a computed value:
+
+```js
+const fanCards = gameState?.lastDiscardedCards ?? [];
+// In both phases, fanCards = lastDiscardedCards (what is physically on the pile)
+// drawableCards is used separately only for draw logic (DrawablePicker / button)
+```
+
+`drawableCards` remains the source of truth for the draw picker and the draw buttons — it is not replaced. Only the visual fan display changes to track `lastDiscardedCards`.
+
+**Relevant files:**
+- `client/src/pages/GamePage.jsx` — compute `fanCards` from `lastDiscardedCards`
+- `client/src/components/DiscardPile.jsx` — no changes needed (already renders `fanCards` correctly)

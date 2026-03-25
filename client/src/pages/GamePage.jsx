@@ -11,6 +11,7 @@ import OpponentArea from "../components/OpponentArea";
 import TurnTimer from "../components/TurnTimer";
 import ChatPanel from "../components/ChatPanel";
 import RoundResultOverlay from "../components/RoundResultOverlay";
+import DrawablePicker from "../components/DrawablePicker";
 import DealingOverlay from "../components/DealingOverlay";
 import YanivOverlay from "../components/YanivOverlay";
 
@@ -66,6 +67,7 @@ export default function GamePage() {
   const [showRoundResult, setShowRoundResult] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [toast, setToast] = useState(null);
+  const [showDrawablePicker, setShowDrawablePicker] = useState(false);
 
   useEffect(() => {
     if (gameState) setDealing(true);
@@ -119,8 +121,14 @@ export default function GamePage() {
     isValidDiscardClient(selectedCards);
   const canDraw = isMyTurn && gameState.phase === "draw";
   const topCard = gameState.discardPile?.topCard ?? null;
-  const drawableCard = gameState.discardPile?.drawableCard ?? null;
+  const drawableCards = gameState.discardPile?.drawableCards ?? [];
+  const isDrawPhase = gameState?.phase === 'draw';
+  const drawableCard = drawableCards.length > 0 && isDrawPhase && isMyTurn
+    ? drawableCards[drawableCards.length - 1]
+    : null;
   const canDrawDiscard = canDraw && !!drawableCard;
+  const justDiscarded = gameState?.lastDiscardedCards?.[gameState.lastDiscardedCards.length - 1] ?? null;
+  const lastDiscarded = gameState?.lastDiscardedCards ?? [];
   const timerSeconds =
     room?.settings?.timerSeconds ?? gameState.settings?.timerSeconds ?? 0;
   const opponents = gameState.players.filter((p) => p.id !== socket.id);
@@ -143,13 +151,30 @@ export default function GamePage() {
 
   function handleDrawDeck() {
     if (!canDraw) return;
+    setShowDrawablePicker(false);
     socket.emit(SOCKET_EVENTS.DRAW, { source: "deck" });
     setSelectedCards([]);
   }
 
   function handleDrawDiscard() {
+    console.log('handleDrawDiscard called', {
+      drawableCards,
+      canDrawDiscard,
+      isMyTurn,
+      phase: gameState?.phase
+    });
     if (!canDrawDiscard) return;
-    socket.emit(SOCKET_EVENTS.DRAW, { source: "discard" });
+    if (drawableCards.length === 1) {
+      socket.emit(SOCKET_EVENTS.DRAW, { source: "discard", cardId: drawableCards[0].id });
+      setSelectedCards([]);
+    } else if (drawableCards.length > 1) {
+      setShowDrawablePicker(true);
+    }
+  }
+
+  function handlePickDrawable(cardId) {
+    setShowDrawablePicker(false);
+    socket.emit(SOCKET_EVENTS.DRAW, { source: "discard", cardId });
     setSelectedCards([]);
   }
 
@@ -257,12 +282,23 @@ export default function GamePage() {
                   />
                 </motion.button>
               </div>
-              <DiscardPile
-                topCard={topCard}
-                drawableCard={drawableCard}
-                onDraw={handleDrawDiscard}
-                canDraw={canDrawDiscard}
-              />
+              <div className="relative">
+                <DiscardPile
+                  topCard={topCard}
+                  drawableCard={drawableCard}
+                  underCard={isDrawPhase && isMyTurn && drawableCards.length > 0 ? drawableCards[0] : null}
+                  fanCards={lastDiscarded}
+                  onDraw={handleDrawDiscard}
+                  canDraw={canDrawDiscard}
+                />
+                {showDrawablePicker && (
+                  <DrawablePicker
+                    cards={drawableCards}
+                    onPick={handlePickDrawable}
+                    onCancel={() => setShowDrawablePicker(false)}
+                  />
+                )}
+              </div>
             </div>
 
             {/* Action buttons - 2×2 on mobile, row on desktop */}
