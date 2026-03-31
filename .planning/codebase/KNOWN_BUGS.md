@@ -218,6 +218,31 @@ const fanCards = gameState?.lastDiscardedCards ?? [];
 
 ---
 
+## BUG-LOGIC-01 — computeDrawableCards ignores Joker in sequences
+
+**Severity:** Medium — wrong drawable cards after run with Joker
+**Status:** Open
+
+**Symptom:** When a sequence containing a Joker is discarded,
+drawableCards excludes the Joker entirely.
+Example: [6H, 7H, JK] → drawableCards = [6H, 7H] instead of [6H, JK]
+
+**Expected per GAME_SPEC §8:**
+- Non-Joker cards consecutive with gap → Joker fills middle → NOT drawable
+  Example: [6H, JK, 8H] → drawable = [6H, 8H]
+- Non-Joker cards consecutive without gap → Joker at edge → IS drawable
+  Example: [6H, 7H, JK] → Joker is high edge → drawable = [6H, JK]
+  Example: [JK, 6H, 7H] → Joker is low edge → drawable = [JK, 7H]
+
+**Root cause:** computeDrawableCards in server/game/gameLogic.js
+filters out Jokers when computing edge cards of a run.
+Fix: sort non-Joker cards by rank, check if gap exists between them,
+determine Joker position (middle/edge) and include/exclude accordingly.
+
+**Relevant files:** server/game/gameLogic.js (computeDrawableCards)
+
+---
+
 ## Fixed Bugs
 
 | ID | Description | Fix |

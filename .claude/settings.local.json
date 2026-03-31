@@ -5,7 +5,8 @@
       "Bash(node -e \"require\\(''cors''\\)\")",
       "Skill(gsd:plan-phase)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git rm:*)"
     ]
   }
 }
