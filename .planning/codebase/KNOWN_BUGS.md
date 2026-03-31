@@ -179,7 +179,7 @@ if (room.gameState.players[room.gameState.currentPlayerIndex]?.id !== socket.id)
 ## BUG-UI-01 — DiscardPile shows wrong cards — fanCards wired to drawableCards instead of lastDiscardedCards
 
 **Severity:** Medium — visual display incorrect, does not affect game logic
-**Status:** Open
+**Status:** Fixed
 
 ### Symptom
 
@@ -215,3 +215,11 @@ const fanCards = gameState?.lastDiscardedCards ?? [];
 **Relevant files:**
 - `client/src/pages/GamePage.jsx` — compute `fanCards` from `lastDiscardedCards`
 - `client/src/components/DiscardPile.jsx` — no changes needed (already renders `fanCards` correctly)
+
+---
+
+## Fixed Bugs
+
+| ID | Description | Fix |
+|---|---|---|
+| BUG-UI-01 | DiscardPile fan shows wrong cards | Wired `fanCards` to `lastDiscardedCards` (via `discardPile.lastDiscardedCards` from server); fixed `computeDrawableCards` single-card case to return the discarded card itself; added `lastDiscardedCards` to `privateGameView`; draw-phase fan shows `lastDiscarded`, discard-phase fan shows `drawableCards`; underCard is now clickable in fan branch |

@@ -39,20 +39,17 @@ export default function DiscardPile({ topCard, drawableCard, underCard, onDraw, 
     return (
       <div className="flex flex-col items-center gap-1">
         <span className="text-xs text-gray-400">ערימה</span>
-        <div
-          className="relative"
-          style={{ width: `${48 + fanCards.length * 16}px`, height: "86px" }}
-        >
-          <CardFan cards={fanCards} />
-          {/* topCard overlay — only during draw phase to show what was just thrown on top */}
-          {(showBoth || underCard) && (
-            <div
-              className="absolute pointer-events-none opacity-80"
-              style={{ left: `${fanCards.length * 16}px`, top: "14px" }}
-            >
-              <CardComponent card={topCard} selected={false} onClick={undefined} />
-            </div>
+        <div className="flex items-center gap-2">
+          {underCard && (
+            <CardComponent
+              card={underCard}
+              selected={false}
+              onClick={canDraw ? onDraw : undefined}
+            />
           )}
+          <div className={underCard ? "opacity-50" : ""}>
+            <CardFan cards={fanCards} />
+          </div>
         </div>
         {!showBoth && drawableCard && (
           <button

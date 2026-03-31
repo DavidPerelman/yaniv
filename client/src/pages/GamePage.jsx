@@ -128,7 +128,7 @@ export default function GamePage() {
     : null;
   const canDrawDiscard = canDraw && !!drawableCard;
   const justDiscarded = gameState?.lastDiscardedCards?.[gameState.lastDiscardedCards.length - 1] ?? null;
-  const lastDiscarded = gameState?.lastDiscardedCards ?? [];
+  const lastDiscarded = gameState?.discardPile?.lastDiscardedCards ?? [];
   const timerSeconds =
     room?.settings?.timerSeconds ?? gameState.settings?.timerSeconds ?? 0;
   const opponents = gameState.players.filter((p) => p.id !== socket.id);
@@ -287,7 +287,7 @@ export default function GamePage() {
                   topCard={topCard}
                   drawableCard={drawableCard}
                   underCard={isDrawPhase && isMyTurn && drawableCards.length > 0 ? drawableCards[0] : null}
-                  fanCards={lastDiscarded}
+                  fanCards={isDrawPhase ? lastDiscarded : drawableCards}
                   onDraw={handleDrawDiscard}
                   canDraw={canDrawDiscard}
                 />

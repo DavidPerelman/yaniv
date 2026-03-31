@@ -23,6 +23,7 @@ export function privateGameView(gameState, playerId) {
     discardPile: {
       topCard: gameState.discardPile.at(-1) ?? null,
       drawableCards: gameState.drawableDiscardCards ?? null,
+      lastDiscardedCards: gameState.lastDiscardedCards ?? [],
     },
     deckSize: gameState.deck.length,
     myHand: gameState.players.find(p => p.id === playerId)?.hand ?? [],

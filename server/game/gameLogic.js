@@ -50,7 +50,7 @@ export function createInitialGameState(players, settings) {
 
 export function computeDrawableCards(discardedCards, topBeforeDiscard) {
   if (discardedCards.length === 1) {
-    return topBeforeDiscard ? [topBeforeDiscard] : [];
+    return [discardedCards[0]];
   }
 
   const jokers = discardedCards.filter((c) => c.suit === "JK");
