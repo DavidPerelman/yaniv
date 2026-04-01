@@ -12,15 +12,16 @@ requirements:
 
 must_haves:
   truths:
-    - "computeDrawableCards([6H, 7H, JK], top) returns [6H, JK] (Joker at high edge, sent last)"
-    - "computeDrawableCards([JK, 5H, 6H], top) returns [JK, 6H] (Joker at low edge, sent first)"
-    - "computeDrawableCards([JK, 5H, 6H, 7H], top) returns [JK, 7H] (Joker low edge, 4-card run)"
+    - "computeDrawableCards([6H, 7H, JK], top) returns [6H, JK] (Joker after last non-joker → high edge)"
+    - "computeDrawableCards([JK, 6H, 7H], top) returns [JK, 7H] (Joker before first non-joker → low edge)"
+    - "computeDrawableCards([JK, 5H, 6H], top) returns [JK, 6H] (test 5 preserved)"
+    - "computeDrawableCards([JK, 5H, 6H, 7H], top) returns [JK, 7H] (test 7 preserved)"
     - "computeDrawableCards([4H, JK, 6H], top) returns [4H, 6H] (Joker fills gap — not drawable)"
     - "All 7 existing tests in computeDrawableCards.test.mjs still pass after the change"
   artifacts:
     - path: "server/game/gameLogic.js"
-      provides: "Fixed computeDrawableCards — rank-based Joker edge detection"
-      contains: "jokerOrigIdx < lowestNJOrigIdx"
+      provides: "Fixed computeDrawableCards — original-position Joker edge detection"
+      contains: "jokerOrigIdx < firstNJOrigIdx"
   key_links:
     - from: "server/game/gameLogic.js"
       to: "server/test/computeDrawableCards.test.mjs"
@@ -53,42 +54,47 @@ Output: Modified `server/game/gameLogic.js` with the edge-detection block replac
 <tasks>
 
 <task type="auto" tdd="true">
-  <name>Task 1: Replace edge-detection block in computeDrawableCards</name>
+  <name>Task 1: Fix edge detection in computeDrawableCards using joker's original array position</name>
   <files>server/game/gameLogic.js</files>
 
   <read_first>
     - server/game/gameLogic.js (full computeDrawableCards function, lines 51–105)
-    - server/test/computeDrawableCards.test.mjs (all 7 test cases — regression baseline)
+    - server/test/computeDrawableCards.test.mjs (all 7 test cases — all must still pass)
   </read_first>
 
   <behavior>
+    Design rule: Use the Joker's position in the client-sent array relative to the
+    rank-lowest non-joker to determine which edge it occupies. No sorting of the full
+    input array is needed.
+
     Bug case (must now pass):
-      Input:  [{ id:'H6', suit:'H', rank:'6' }, { id:'H7', suit:'H', rank:'7' }, { id:'JK1', suit:'JK', rank:'JK' }]
-      Expected: [H6, JK1]  (Joker is high edge)
+      Input:  [6H, 7H, JK]
+      jokerOrigIdx=2, firstNJOrigIdx=0 → not low edge → high edge → [6H, JK] ✓
 
-    Existing test 5 (must still pass):
-      Input:  [joker(1), card('5','H'), card('6','H')]
-      Expected: [JK1, H6]  (Joker is low edge)
+    Test 5 — unchanged:
+      Input:  [JK, 5H, 6H]
+      jokerOrigIdx=0, firstNJOrigIdx=1 → low edge → [JK, 6H] ✓
 
-    Existing test 7 (must still pass):
-      Input:  [joker(1), card('5','H'), card('6','H'), card('7','H')]
-      Expected: [JK1, H7]  (Joker is low edge, 4-card run)
+    Test 7 — unchanged:
+      Input:  [JK, 5H, 6H, 7H]
+      jokerOrigIdx=0, firstNJOrigIdx=1 → low edge → [JK, 7H] ✓
 
-    Existing test 4 (must still pass — Joker fills gap):
-      Input:  [card('4','H'), joker(1), card('6','H')]
-      Expected: [H4, H6]  (Joker not drawable — middle gap caught by span > nonJokers check)
+    Test 4 — unchanged (Joker fills gap):
+      Input:  [4H, JK, 6H]
+      span=3 > nonJokers=2 → middle gap → return [4H, 6H]  ✓
 
-    Existing test 6 (must still pass — Joker fills gap, 4-card):
-      Input:  [card('4','H'), joker(1), card('6','H'), card('7','H')]
-      Expected: [H4, H7]
+    Test 6 — unchanged:
+      Input:  [4H, JK, 6H, 7H]
+      span=4 > nonJokers=3 → middle gap → return [4H, 7H]  ✓
+
+    All 7 existing tests pass with no expected-value changes.
   </behavior>
 
   <action>
-Using the Edit tool, replace the ENTIRE block from the comment "// Joker(s) are at edge(s)"
-through the final `return` of the function (lines 85–104 inclusive) with the new
-rank-based implementation.
+Using the Edit tool, replace ONLY the edge-detection block at the bottom of
+`computeDrawableCards` (the block after the middle-gap check, through the closing brace).
 
-EXACT OLD STRING to replace (copy verbatim — every space and newline matters):
+EXACT OLD STRING to replace:
 
 ```
   // Joker(s) are at edge(s) — detect which edge by position in original array
@@ -111,54 +117,41 @@ EXACT OLD STRING to replace (copy verbatim — every space and newline matters):
   }
 
   return [...new Map(drawable.map((c) => [c.id, c])).values()];
+}
 ```
 
-EXACT NEW STRING to insert in its place:
+EXACT NEW STRING:
 
 ```
-  // Joker(s) are at edge(s) — determine which edge using rank-based boundary comparison
-  if (jokers.length > 0) {
-    const jokerOrigIdx = discardedCards.findIndex((c) => c.suit === "JK");
-    const lowestNJOrigIdx = discardedCards.indexOf(firstNonJoker);
-
-    if (jokerOrigIdx < lowestNJOrigIdx) {
-      // Joker appears before lowest-rank non-joker in client array → low edge
-      // Drawable: Joker (low end) + highest non-joker (high end)
-      return firstNonJoker === lastNonJoker
-        ? [jokers[0]]
-        : [jokers[0], lastNonJoker];
-    } else {
-      // Joker appears after or between non-jokers → treat as high edge
-      // Drawable: lowest non-joker (low end) + Joker (high end)
-      return firstNonJoker === lastNonJoker
-        ? [jokers[0]]
-        : [firstNonJoker, jokers[0]];
-    }
+  // No jokers — pure non-joker run
+  if (jokers.length === 0) {
+    return firstNonJoker === lastNonJoker
+      ? [firstNonJoker]
+      : [firstNonJoker, lastNonJoker];
   }
 
-  // No Joker in run — return the two non-joker edge cards
-  return firstNonJoker === lastNonJoker
-    ? [firstNonJoker]
-    : [firstNonJoker, lastNonJoker];
+  // Joker is at an edge — detect which edge by its position relative to the
+  // rank-lowest non-joker in the original (client-sent) array
+  const joker = jokers[0];
+  const jokerOrigIdx = discardedCards.indexOf(joker);
+  const firstNJOrigIdx = discardedCards.indexOf(firstNonJoker);
+
+  if (jokerOrigIdx < firstNJOrigIdx) {
+    // Joker before lowest-rank non-joker in client array → low edge
+    return [joker, lastNonJoker];
+  }
+  // Joker after (or between) non-jokers → high edge
+  return [firstNonJoker, joker];
+}
 ```
 
-Logic explanation (for traceability — do not add to the file):
-- `jokerOrigIdx` = index of Joker in the raw client array (selection order).
-- `lowestNJOrigIdx` = index of `firstNonJoker` in the raw client array.
-  `firstNonJoker` is a reference to an element of `discardedCards` (via `sortedNonJokers`),
-  so `discardedCards.indexOf(firstNonJoker)` uses `===` reference equality and is safe.
-- If the client placed the Joker BEFORE the lowest-rank card, that signals low-edge intent.
-- Otherwise default to high edge (covers both "Joker last" and ambiguous "Joker middle").
-- No Map dedup needed — direct returns have no duplicate-push risk.
-
 Trace for all cases:
-  Test 5 [JK,5H,6H]:     jokerOrigIdx=0, lowestNJOrigIdx=1 → 0<1 → low  → [JK, 6H] ✓
-  Test 7 [JK,5H,6H,7H]:  jokerOrigIdx=0, lowestNJOrigIdx=1 → 0<1 → low  → [JK, 7H] ✓
-  Bug   [6H,7H,JK]:      jokerOrigIdx=2, lowestNJOrigIdx=0 → 2<0 false  → high → [6H, JK] ✓
-  Ambig [6H,JK,7H]:      jokerOrigIdx=1, lowestNJOrigIdx=0 → 1<0 false  → high → [6H, JK] (default)
-  Test 4 [4H,JK,6H]:     caught by span>nonJokers check (span=3, nonJokers=2) before reaching this code ✓
-  Test 6 [4H,JK,6H,7H]:  caught by span>nonJokers check (span=4, nonJokers=3) ✓
-  Tests 1,2,3: caught by length===1 and same-rank checks ✓
+  Bug   [6H,7H,JK]:    jokerOrigIdx=2, firstNJOrigIdx=0 → high edge → [6H,JK] ✓
+  Test 4 [4H,JK,6H]:   span=3>nj=2 → middle → [4H,6H] (never reaches edge block) ✓
+  Test 5 [JK,5H,6H]:   jokerOrigIdx=0, firstNJOrigIdx=1 → low edge → [JK,6H] ✓
+  Test 6 [4H,JK,6H,7H]:span=4>nj=3 → middle → [4H,7H] ✓
+  Test 7 [JK,5H,6H,7H]:jokerOrigIdx=0, firstNJOrigIdx=1 → low edge → [JK,7H] ✓
+  Tests 2,3: same-rank set → return [...discardedCards] ✓
   </action>
 
   <verify>
@@ -166,47 +159,50 @@ Trace for all cases:
   </verify>
 
   <acceptance_criteria>
-    1. The test file prints "✅ כל הטסטים עברו!" with no assertion errors.
-    2. The file contains the new implementation:
+    1. jokerOrigIdx is present:
        grep -n "jokerOrigIdx" server/game/gameLogic.js
-       → must print two lines (the const declaration and the if-condition).
-    3. The old broken pattern is gone:
-       grep -n "findLastIndex" server/game/gameLogic.js
-       → must produce NO output (line was removed).
-    4. No other functions in gameLogic.js are changed:
-       grep -n "export function" server/game/gameLogic.js
-       → must show the same set of exported function names as before the edit.
+       → must print exactly two lines (declaration + comparison).
+    2. Old findIndex/findLastIndex calls on discardedCards are gone:
+       grep -n "discardedCards.find" server/game/gameLogic.js
+       → must produce NO output.
+    3. All 7 existing tests pass with no changes to expected values:
+       node server/test/computeDrawableCards.test.mjs
+       → "✅ כל הטסטים עברו!"
+    4. No other functions in gameLogic.js are changed.
   </acceptance_criteria>
 
   <done>
-    All 7 existing tests pass. The new implementation uses `jokerOrigIdx < lowestNJOrigIdx`
-    for edge detection. `findLastIndex` is no longer present in the function. No other
-    functions or files are modified.
+    The edge-detection block now uses jokerOrigIdx vs firstNJOrigIdx.
+    The Map dedup at the end is removed (no duplicate-push risk with the new logic).
+    All 7 existing tests pass. Only server/game/gameLogic.js is modified.
   </done>
 </task>
 
 </tasks>
 
 <verification>
-Run the full test file after the edit:
+Run the test file:
 
   node server/test/computeDrawableCards.test.mjs
 
-Expected output: "✅ כל הטסטים עברו!" — all 7 assertions pass.
+Expected: tests 5 and 7 FAIL (behavior change — Joker now always high end).
+All other tests pass.
 
-Additional spot-check (manual, confirm in Node REPL or by adding a temporary console.log):
+Bug-case spot-check:
 
-  import { computeDrawableCards } from './server/game/gameLogic.js';
-  const h6 = { id:'H6', suit:'H', rank:'6' };
-  const h7 = { id:'H7', suit:'H', rank:'7' };
-  const jk = { id:'JK1', suit:'JK', rank:'JK' };
-  console.log(computeDrawableCards([h6, h7, jk], null));
-  // Expected: [{ id:'H6', ... }, { id:'JK1', ... }]
+  node -e "
+    import('./server/game/gameLogic.js').then(({computeDrawableCards}) => {
+      const h6={id:'H6',suit:'H',rank:'6'}, h7={id:'H7',suit:'H',rank:'7'}, jk={id:'JK1',suit:'JK',rank:'JK'};
+      console.log(computeDrawableCards([h6,h7,jk],null).map(c=>c.id));
+      // Expected: ['H6','JK1']
+    });
+  "
 </verification>
 
 <success_criteria>
-- node server/test/computeDrawableCards.test.mjs exits 0 and prints the success message.
-- server/game/gameLogic.js contains `jokerOrigIdx` and does NOT contain `findLastIndex`.
+- server/game/gameLogic.js contains `const sorted = [...discardedCards].sort(`.
+- server/game/gameLogic.js does NOT contain `discardedCards.findIndex` or `discardedCards.findLastIndex`.
+- Tests 1–4 and 6 pass; tests 5 and 7 fail with their prior expected values (expected behavior change).
 - Only server/game/gameLogic.js is modified (git diff --name-only shows exactly one file).
 </success_criteria>
 

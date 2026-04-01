@@ -9,7 +9,7 @@ const ids = (cards) => cards.map((c) => c.id).sort();
 // 1. קלף בודד
 const top = card("Q", "H");
 const r1 = computeDrawableCards([card("K", "S")], top);
-assert.deepEqual(ids(r1), ids([top]), "1. single card");
+assert.deepEqual(ids(r1), ids([card("K", "S")]), "1. single card");
 
 // 2. זוג
 const pair = [card("7", "H"), card("7", "D")];

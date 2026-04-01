@@ -82,26 +82,25 @@ export function computeDrawableCards(discardedCards, topBeforeDiscard) {
       : [firstNonJoker, lastNonJoker];
   }
 
-  // Joker(s) are at edge(s) — detect which edge by position in original array
-  const firstNonJokerIdx = discardedCards.findIndex((c) => c.suit !== "JK");
-  const lastNonJokerIdx = discardedCards.findLastIndex((c) => c.suit !== "JK");
-
-  const drawable = [];
-  if (firstNonJokerIdx > 0) {
-    // Joker precedes first non-joker → low edge joker is drawable
-    drawable.push(discardedCards[0]);
-  } else {
-    drawable.push(firstNonJoker);
+  // No jokers — pure non-joker run
+  if (jokers.length === 0) {
+    return firstNonJoker === lastNonJoker
+      ? [firstNonJoker]
+      : [firstNonJoker, lastNonJoker];
   }
 
-  if (lastNonJokerIdx < discardedCards.length - 1) {
-    // Joker follows last non-joker → high edge joker is drawable
-    drawable.push(discardedCards[discardedCards.length - 1]);
-  } else if (lastNonJoker !== firstNonJoker) {
-    drawable.push(lastNonJoker);
-  }
+  // Joker is at an edge — detect which edge by its position relative to the
+  // rank-lowest non-joker in the original (client-sent) array
+  const joker = jokers[0];
+  const jokerOrigIdx = discardedCards.indexOf(joker);
+  const firstNJOrigIdx = discardedCards.indexOf(firstNonJoker);
 
-  return [...new Map(drawable.map((c) => [c.id, c])).values()];
+  if (jokerOrigIdx < firstNJOrigIdx) {
+    // Joker before lowest-rank non-joker in client array → low edge
+    return [joker, lastNonJoker];
+  }
+  // Joker after (or between) non-jokers → high edge
+  return [firstNonJoker, joker];
 }
 
 export function isValidDiscard(cards) {

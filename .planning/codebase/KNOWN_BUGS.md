@@ -234,12 +234,17 @@ Example: [6H, 7H, JK] → drawableCards = [6H, 7H] instead of [6H, JK]
   Example: [6H, 7H, JK] → Joker is high edge → drawable = [6H, JK]
   Example: [JK, 6H, 7H] → Joker is low edge → drawable = [JK, 7H]
 
-**Root cause:** computeDrawableCards in server/game/gameLogic.js
-filters out Jokers when computing edge cards of a run.
-Fix: sort non-Joker cards by rank, check if gap exists between them,
-determine Joker position (middle/edge) and include/exclude accordingly.
+**Root cause:** `computeDrawableCards` relies on the position of the Joker
+within the input array to determine edge vs middle.
+But the client sends cards in selection order (not sorted),
+so the Joker position is arbitrary and the edge detection fails.
 
-**Relevant files:** server/game/gameLogic.js (computeDrawableCards)
+Fix: in `gameHandlers.js`, before passing cards to `applyDiscard`,
+sort them so non-Jokers are in rank order and Joker is placed
+at the correct edge or gap position.
+OR: fix `computeDrawableCards` to sort internally before edge detection.
+
+**Relevant files:** `server/game/gameLogic.js` (computeDrawableCards), `server/handlers/gameHandlers.js`
 
 ---
 
